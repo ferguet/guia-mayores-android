@@ -1,0 +1,41 @@
+# Compila el APK en los servidores de GitHub, gratis.
+#
+# Asi Fran no necesita instalar Android Studio ni nada: sube el codigo,
+# GitHub lo compila, y el APK queda para descargar desde la pestaña
+# "Actions" del repositorio.
+name: Compilar APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:      # boton para lanzarlo a mano desde la web de GitHub
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preparar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Sin gradle wrapper a proposito: el wrapper incluye un fichero
+      # binario que complica el repositorio. Aqui se instala Gradle
+      # directamente y se invoca igual.
+      - name: Preparar Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Compilar
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Guardar el APK para descargar
+        uses: actions/upload-artifact@v4
+        with:
+          name: guia-fase0-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
