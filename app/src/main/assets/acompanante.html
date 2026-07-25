@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Su acompañante</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b7a3b">
+<style>
+/* =====================================================================
+   FASE 1 - El acompañante.
+   No dibuja nada encima de ninguna web: eso es la Fase 2. Aqui esta lo
+   que de verdad les hunde y nadie resuelve:
+     - no saber por donde iban, semanas despues
+     - perder el numero de solicitud
+     - olvidar la contraseña que se inventaron (y que no se recupera)
+     - no entender las palabras de la pantalla
+     - no saber que hay una trampa hasta que la pisan
+   Todo esto funciona sin permisos, sin cuenta y sin conexion.
+   ===================================================================== */
+:root{
+  --verde:#0b7a3b; --verde-osc:#065c2c;
+  --azul:#0a5fa8; --azul-osc:#083f70;
+  --naranja:#c85000; --naranja-suave:#fff4e5;
+  --rojo:#b3261e;
+  --gris:#5f5f5f; --tinta:#141414;
+  --papel:#eef1f4;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0; height:100%;}
+body{
+  font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
+  background:var(--papel); color:var(--tinta);
+  height:100vh; height:100dvh; display:flex; flex-direction:column; overflow:hidden;
+  font-size:17px;
+}
+
+header{
+  background:var(--verde); color:#fff; flex-shrink:0;
+  padding:calc(14px + env(safe-area-inset-top)) 18px 14px;
+  display:flex; align-items:center; gap:12px;
+}
+header .atras{
+  background:rgba(255,255,255,.2); border:none; color:#fff; width:44px; height:44px;
+  border-radius:50%; font-size:22px; cursor:pointer; flex-shrink:0; display:none;
+}
+header .atras.ver{display:block;}
+header .tit b{font-size:21px; display:block; line-height:1.2;}
+header .tit span{font-size:14px; opacity:.92;}
+
+main{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch;}
+.pant{display:none; padding:18px 16px 40px;}
+.pant.ver{display:block;}
+
+/* --------- Tarjeta principal: que toca hoy --------- */
+.hoy{
+  background:#fff; border-radius:20px; padding:22px; margin-bottom:18px;
+  border-left:11px solid var(--verde); box-shadow:0 3px 12px rgba(0,0,0,.10);
+}
+.hoy .et{font-size:15px; color:var(--gris); margin-bottom:7px;}
+.hoy .qq{font-size:25px; font-weight:800; line-height:1.3; margin-bottom:8px;}
+.hoy .detalle{font-size:17px; line-height:1.5; color:#3a3a3a; margin-bottom:16px;}
+
+.btn{
+  display:block; width:100%; padding:19px 14px; font-size:20px; font-weight:800;
+  border:none; border-radius:15px; background:var(--verde); color:#fff;
+  cursor:pointer; box-shadow:0 4px 0 var(--verde-osc); margin-bottom:12px;
+  text-align:center; line-height:1.3;
+}
+.btn:active{transform:translateY(3px); box-shadow:0 1px 0 var(--verde-osc);}
+.btn.azul{background:var(--azul); box-shadow:0 4px 0 var(--azul-osc);}
+.btn.hueco{background:#fff; color:var(--verde); border:3px solid var(--verde); box-shadow:none;}
+.btn.gris{background:#fff; color:var(--gris); border:3px solid #cfd4da; box-shadow:none; font-size:17px; padding:15px;}
+
+h2.sec{font-size:15px; color:var(--gris); text-transform:uppercase;
+  letter-spacing:.07em; margin:28px 4px 12px; font-weight:700;}
+
+/* --------- Los pasos --------- */
+.paso{
+  display:flex; gap:15px; align-items:flex-start; background:#fff;
+  border-radius:17px; padding:17px; margin-bottom:11px;
+}
+.paso .num{
+  width:46px; height:46px; border-radius:50%; flex-shrink:0;
+  display:grid; place-items:center; font-size:21px; font-weight:800;
+  background:#e3e6ea; color:#98a0a8;
+}
+.paso .tx b{font-size:18.5px; display:block; line-height:1.3;}
+.paso .tx span{font-size:15.5px; color:var(--gris); line-height:1.45; display:block; margin-top:4px;}
+.paso.hecho .num{background:var(--verde); color:#fff;}
+.paso.hecho .tx b{color:var(--gris); text-decoration:line-through;}
+.paso.ahora{border:3px solid var(--verde); box-shadow:0 3px 14px rgba(11,122,59,.20);}
+.paso.ahora .num{background:var(--verde); color:#fff;}
+.paso.bloq{opacity:.5;}
+
+/* --------- Cosas guardadas --------- */
+.guardado{
+  background:var(--azul); color:#fff; border-radius:17px; padding:19px;
+  margin-bottom:13px; text-align:center;
+}
+.guardado .et{font-size:15px; opacity:.92;}
+.guardado .n{font-size:36px; font-weight:800; letter-spacing:2px; margin:9px 0;
+  font-variant-numeric:tabular-nums; word-break:break-all;}
+.guardado .mini{font-size:14.5px; opacity:.92; line-height:1.4;}
+
+.nota{
+  background:#fff; border:3px solid var(--azul); border-radius:17px;
+  padding:17px; margin-bottom:13px;
+}
+.nota .t{font-size:17px; font-weight:800; color:var(--azul-osc); margin-bottom:7px;}
+.nota .v{font-size:20px; font-weight:700; line-height:1.4;}
+.nota .mini{font-size:14.5px; color:var(--gris); line-height:1.45; margin-top:8px;}
+
+/* --------- El aviso que salva el trámite --------- */
+.trampa{
+  background:var(--naranja-suave); border:3px solid var(--naranja);
+  border-radius:17px; padding:18px; margin-bottom:14px;
+}
+.trampa .t{font-size:19px; font-weight:800; color:#8a3d00; margin-bottom:9px;}
+.trampa p{font-size:17px; line-height:1.5; margin:0 0 8px; color:#5c3000;}
+.trampa p:last-child{margin-bottom:0;}
+.trampa b{color:#7a3400;}
+
+/* --------- Diccionario --------- */
+.palabra{background:#fff; border-radius:15px; padding:16px; margin-bottom:11px;
+  border-left:7px solid var(--azul);}
+.palabra .of{font-size:14.5px; color:var(--gris); margin-bottom:5px;}
+.palabra .of i{font-style:normal; font-weight:800; color:var(--azul-osc);
+  background:#e8f4ff; padding:3px 9px; border-radius:6px;}
+.palabra .es{font-size:18px; line-height:1.45;}
+
+/* --------- Campos --------- */
+label.campo{display:block; font-size:16px; font-weight:700; margin:0 0 8px;}
+input.campo{
+  width:100%; padding:16px; font-size:19px; border:3px solid #c3c9d0;
+  border-radius:12px; margin-bottom:16px; background:#fff; color:var(--tinta);
+}
+input.campo:focus{border-color:var(--verde); outline:none;}
+
+.vacio{text-align:center; color:var(--gris); font-size:17px; line-height:1.6; padding:40px 16px;}
+</style>
+</head>
+<body>
+
+<header>
+  <button class="atras" id="btnAtras" onclick="volver()">←</button>
+  <div class="tit"><b id="hTit">Su acompañante</b><span id="hSub">Yo me acuerdo por usted</span></div>
+</header>
+
+<main>
+
+<!-- ============ INICIO ============ -->
+<div class="pant ver" id="pInicio">
+  <div class="hoy" id="tarjetaHoy">
+    <div class="et" id="hoyEt">Hoy</div>
+    <div class="qq" id="hoyQue">…</div>
+    <div class="detalle" id="hoyDet"></div>
+    <button class="btn" id="hoyBtn">Empezar</button>
+  </div>
+
+  <div id="zonaGuardado"></div>
+  <div id="zonaTrampa"></div>
+
+  <h2 class="sec">Por dónde va</h2>
+  <div id="listaPasos"></div>
+
+  <h2 class="sec">Si algo no se entiende</h2>
+  <button class="btn hueco" onclick="ir('pDicc')">📖 Qué significan las palabras raras</button>
+  <button class="btn gris" onclick="leerPantalla()">🔊 Léame la pantalla</button>
+</div>
+
+<!-- ============ GUARDAR EL CÓDIGO ============ -->
+<div class="pant" id="pCodigo">
+  <div class="hoy" style="border-left-color:var(--azul)">
+    <div class="et">Paso 2</div>
+    <div class="qq">¿Le ha llegado el número por correo?</div>
+    <div class="detalle">Cuando pidió el certificado, le mandaron un número largo a su correo electrónico. Lo llaman «Código de Solicitud».<br><br>Apúntelo aquí y ya no tendrá que buscarlo nunca más.</div>
+  </div>
+
+  <label class="campo" for="fCod">El número que le llegó</label>
+  <input class="campo" id="fCod" type="text" inputmode="numeric" placeholder="Por ejemplo: 483920175">
+
+  <div class="trampa">
+    <div class="t">⚠️ Y la contraseña</div>
+    <p>Al pedirlo, la página le hizo <b>inventarse una contraseña</b>. Se la volverán a pedir dentro de unas semanas, y <b>si se le olvida no se puede recuperar</b>: habría que empezar de cero.</p>
+    <p><b>Yo no se la voy a guardar</b>, por su seguridad. Apúntela en un papel y dígame dónde lo ha dejado, para recordárselo.</p>
+  </div>
+
+  <label class="campo" for="fDonde">¿Dónde ha apuntado la contraseña?</label>
+  <input class="campo" id="fDonde" type="text" placeholder="En la libreta azul del cajón">
+
+  <button class="btn" onclick="guardarCodigo()">Guardar</button>
+  <button class="btn gris" onclick="ir('pInicio')">Ahora no</button>
+</div>
+
+<!-- ============ DÍA DE OFICINA ============ -->
+<div class="pant" id="pOficina">
+  <div class="hoy" style="border-left-color:var(--azul)">
+    <div class="et">Le toca salir de casa</div>
+    <div class="qq">Hoy no hay que tocar el ordenador.</div>
+    <div class="detalle">Hay que ir un rato a una oficina para que le vean la cara y el carnet. Se tarda cinco minutos.</div>
+  </div>
+
+  <div class="guardado" id="codOficina"></div>
+
+  <h2 class="sec">Qué tiene que llevar</h2>
+  <div class="paso"><div class="num">1</div><div class="tx"><b>Su DNI</b><span>El carnet de verdad. Una foto no vale.</span></div></div>
+  <div class="paso"><div class="num">2</div><div class="tx"><b>Este móvil</b><span>Para enseñar el número de arriba.</span></div></div>
+  <div class="paso"><div class="num">3</div><div class="tx"><b>Nada más</b><span>De verdad. Nada más.</span></div></div>
+
+  <div class="palabra">
+    <div class="of">Si le dicen <i>acreditar la identidad</i>:</div>
+    <div class="es">Quieren comprobar que usted es usted, mirándole el DNI. Nada más.</div>
+  </div>
+
+  <button class="btn azul" onclick="marcarOficinaHecha()">Ya he ido a la oficina</button>
+  <button class="btn gris" onclick="ir('pInicio')">Todavía no he ido</button>
+</div>
+
+<!-- ============ DICCIONARIO ============ -->
+<div class="pant" id="pDicc">
+  <div id="listaPalabras"></div>
+  <button class="btn gris" onclick="ir('pInicio')">Volver</button>
+</div>
+
+</main>
+
+<script>
+/* =====================================================================
+   Memoria. Es lo unico que hace esta app, y es lo que la hace util:
+   acordarse cuando la persona ya no se acuerda.
+   Se guarda solo en el propio movil. No sale nada a ningun sitio.
+   ===================================================================== */
+const CLAVE = "acompanante_certificado_v1";
+
+function cargar(){
+  try{
+    const g = localStorage.getItem(CLAVE);
+    if(g) return JSON.parse(g);
+  }catch(e){}
+  return {
+    fase: 1,            // 1 preparar, 2 pedir, 3 oficina, 4 descargar, 5 hecho
+    codigo: null,       // el numero de solicitud (esto si se guarda: ya esta en su correo)
+    dondeClave: null,   // DONDE apunto la contraseña. La contraseña NO se guarda nunca.
+    equipo: null,       // que aparato uso: hay que volver al mismo
+    fecha: null
+  };
+}
+let E = cargar();
+function guardar(){ try{ localStorage.setItem(CLAVE, JSON.stringify(E)); }catch(e){} }
+
+/* ---------- Voz ---------- */
+function hablar(f){
+  if(!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(f);
+  u.lang = "es-ES"; u.rate = 0.88;
+  speechSynthesis.speak(u);
+}
+function leerPantalla(){
+  const p = document.querySelector(".pant.ver");
+  hablar(p ? p.innerText.replace(/🔊|📖|⚠️/g,"") : "");
+}
+
+/* ---------- Navegacion ---------- */
+let pila = [];
+function ir(id){
+  const actual = document.querySelector(".pant.ver");
+  if(actual && actual.id !== id) pila.push(actual.id);
+  document.querySelectorAll(".pant").forEach(p=>p.classList.remove("ver"));
+  document.getElementById(id).classList.add("ver");
+  document.getElementById("btnAtras").classList.toggle("ver", id !== "pInicio");
+  document.querySelector("main").scrollTop = 0;
+  if(id === "pInicio"){ pila = []; pintar(); }
+  if(id === "pOficina") pintarOficina();
+  if(id === "pDicc") pintarDiccionario();
+}
+function volver(){ ir(pila.pop() || "pInicio"); }
+
+/* ---------- Los 4 pasos, en cristiano ---------- */
+const PASOS = [
+  {n:1, t:"Preparar el aparato",           s:"Se instala un programita. Una vez y ya está."},
+  {n:2, t:"Pedirlo por internet",          s:"Tres datos. Le llega un número a su correo."},
+  {n:3, t:"Ir a una oficina con el DNI",   s:"Que le vean la cara y el carnet. Cinco minutos."},
+  {n:4, t:"Traérselo al mismo aparato",    s:"Volver aquí y descargarlo. Y hacer una copia."}
+];
+
+function pintar(){
+  document.getElementById("listaPasos").innerHTML = PASOS.map(f=>{
+    const cl = f.n < E.fase ? "hecho" : (f.n === E.fase ? "ahora" : "bloq");
+    const ic = f.n < E.fase ? "✓" : f.n;
+    return '<div class="paso '+cl+'"><div class="num">'+ic+'</div>'+
+           '<div class="tx"><b>'+f.t+'</b><span>'+f.s+'</span></div></div>';
+  }).join("");
+
+  const et=document.getElementById("hoyEt"), qq=document.getElementById("hoyQue"),
+        dt=document.getElementById("hoyDet"), bt=document.getElementById("hoyBtn");
+  bt.className="btn"; bt.style.display="block";
+
+  if(E.fase===1){
+    et.textContent="Para empezar";
+    qq.textContent="Vamos a sacarle el certificado digital.";
+    dt.textContent="Son cuatro pasos repartidos en varios días. No hay prisa: yo me acuerdo de por dónde vamos, usted no tiene que recordar nada.";
+    bt.textContent="Empezar";
+    bt.onclick=()=>{
+      E.fase=2; E.equipo="este mismo móvil"; E.fecha=new Date().toLocaleDateString("es-ES");
+      guardar(); pintar();
+      hablar("Muy bien. Lo primero es pedirlo por internet.");
+    };
+  }
+  else if(E.fase===2){
+    et.textContent="Lo que toca ahora";
+    qq.textContent="Pedir el certificado por internet.";
+    dt.textContent="Le pedirán su DNI, su primer apellido y su correo. Después le llegará un número por correo electrónico: ese número lo guardo yo.";
+    bt.textContent="Ya lo he pedido, tengo el número";
+    bt.onclick=()=>ir("pCodigo");
+  }
+  else if(E.fase===3){
+    et.textContent="Lo siguiente";
+    qq.textContent="Ir un día a una oficina con el DNI.";
+    dt.textContent="No hay prisa: puede ir cualquier día. Hasta que no vaya, no se puede seguir.";
+    bt.textContent="¿Qué llevo a la oficina?";
+    bt.className="btn azul";
+    bt.onclick=()=>ir("pOficina");
+  }
+  else if(E.fase===4){
+    et.textContent="Ya casi está";
+    qq.textContent="Solo queda traérselo a este aparato.";
+    dt.textContent="Le pedirán otra vez su DNI, el número que tengo guardado, y la contraseña que se inventó.";
+    bt.textContent="Ya lo he descargado";
+    bt.onclick=()=>{
+      E.fase=5; guardar(); pintar();
+      hablar("Enhorabuena. Ya tiene su certificado digital.");
+    };
+  }
+  else{
+    et.textContent="Terminado";
+    qq.textContent="Ya tiene su certificado digital.";
+    dt.textContent="Con esto puede hacer los papeles de Hacienda y de la Seguridad Social desde casa, sin pedir cita ni hacer cola.";
+    bt.style.display="none";
+  }
+
+  // lo que tengo guardado
+  let g = "";
+  if(E.codigo){
+    g += '<div class="guardado"><div class="et">Su número de solicitud</div>'+
+         '<div class="n">'+E.codigo+'</div>'+
+         '<div class="mini">Guardado. No tiene que acordarse ni buscarlo en el correo.</div></div>';
+  }
+  if(E.dondeClave){
+    g += '<div class="nota"><div class="t">🔑 Su contraseña está aquí</div>'+
+         '<div class="v">'+E.dondeClave+'</div>'+
+         '<div class="mini">No la guardo yo por su seguridad. Solo recuerdo dónde la dejó usted.</div></div>';
+  }
+  document.getElementById("zonaGuardado").innerHTML = g;
+
+  // el aviso que salva el tramite
+  document.getElementById("zonaTrampa").innerHTML = (E.fase>=2 && E.fase<5) ?
+    '<div class="trampa"><div class="t">⚠️ Dos cosas que no se pueden olvidar</div>'+
+    '<p><b>1.</b> El certificado solo se puede descargar en <b>'+(E.equipo||"este mismo aparato")+'</b>. En otro no funcionaría y habría que empezar de cero.</p>'+
+    '<p><b>2.</b> La contraseña que se inventó hace falta otra vez al final. Si se pierde, no se recupera.</p>'+
+    '<p style="margin-top:10px">Yo se lo recuerdo cada vez que abra esto. Usted no tiene que hacer nada.</p></div>' : "";
+}
+
+function guardarCodigo(){
+  const c = document.getElementById("fCod").value.trim();
+  const d = document.getElementById("fDonde").value.trim();
+  if(c) E.codigo = c;
+  if(d) E.dondeClave = d;
+  if(E.codigo) E.fase = 3;
+  guardar();
+  ir("pInicio");
+  hablar("Guardado. Ahora le toca ir un día a una oficina con su de eneí.");
+}
+
+function pintarOficina(){
+  document.getElementById("codOficina").innerHTML = E.codigo ?
+    '<div class="et">Enseñe este número en la oficina</div><div class="n">'+E.codigo+'</div>'+
+    '<div class="mini">No hace falta que lo apunte. Está aquí siempre.</div>'
+    : '<div class="et">Todavía no tengo su número</div><div class="mini">Vuelva atrás y apúntemelo primero.</div>';
+}
+
+function marcarOficinaHecha(){
+  E.fase = 4; guardar(); ir("pInicio");
+  hablar("Muy bien. Ya solo queda traerse el certificado a este aparato.");
+}
+
+/* ---------- Diccionario: las palabras que les paran ---------- */
+const PALABRAS = [
+  ["Certificado digital",  "Es como un DNI para internet. Sirve para hacer papeles oficiales desde casa sin ir a ninguna ventanilla."],
+  ["Sede electrónica",     "La página oficial de un organismo. Es donde se hacen los papeles por internet."],
+  ["NIF",                  "Es su DNI de toda la vida: los ocho números y la letra."],
+  ["Código de Solicitud",  "El número largo que le mandan al correo cuando pide el certificado. Yo se lo guardo."],
+  ["Acreditar la identidad","Que le miren el DNI en persona para comprobar que es usted. Se hace una vez, en una oficina."],
+  ["Oficina de registro",  "Una oficina donde le comprueban el DNI. Suelen valer las de la Seguridad Social y las de Hacienda."],
+  ["Descargar",            "Traerse algo de internet a su aparato, para tenerlo guardado."],
+  ["Cl@ve",                "Otra forma de identificarse por internet, distinta del certificado. Funciona con un mensaje al móvil."],
+  ["Copia de seguridad",   "Una copia guardada aparte, por si se estropea el aparato. Con el certificado conviene hacerla."]
+];
+function pintarDiccionario(){
+  document.getElementById("listaPalabras").innerHTML = PALABRAS.map(p=>
+    '<div class="palabra"><div class="of">Cuando pone <i>'+p[0]+'</i> quiere decir:</div>'+
+    '<div class="es">'+p[1]+'</div></div>').join("");
+}
+
+/* ---------- Arranque ---------- */
+pintar();
+</script>
+</body>
+</html>

@@ -3,83 +3,79 @@ package es.guiamayores.fase0
 import android.annotation.SuppressLint
 import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
+import android.speech.tts.TextToSpeech
 import android.view.ViewGroup
+import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import java.util.Locale
 
 /**
- * FASE 0 - la prueba que decide si el proyecto es viable.
+ * GUIA HABLADA SOBRE LA SEDE REAL
  *
- * La pregunta a responder es una sola: ¿podemos abrir una sede electronica
- * REAL dentro de nuestra propia app y dibujar encima la ayuda?
+ * La Fase 0 ya demostro lo unico que habia que demostrar: que una app con
+ * su propio navegador puede abrir una sede electronica de verdad y dibujar
+ * encima. Esto es el paso siguiente, y cambia el enfoque por completo tras
+ * ver como se maneja de verdad una persona mayor:
  *
- * Ya sabemos que meterla en un iframe dentro de una web es imposible: el
- * servidor de la FNMT responde "X-Frame-Options: SAMEORIGIN" y lo prohibe.
- * Pero un WebView no es un iframe: es un navegador propio haciendo una
- * navegacion normal, asi que esa prohibicion no le afecta. Aqui se
- * comprueba si ademas podemos inyectarle nuestra capa de ayuda encima.
+ *   - NO leen. Ven mal y se cansan. El texto en pantalla es minimo.
+ *   - Se les olvida entre una pantalla y otra donde iban.
+ *   - Un diccionario de palabras aparte no sirve de nada: para cuando
+ *     van a consultarlo, ya se han perdido.
  *
- * Esta app NO rellena formularios, NO guarda datos y NO pide contraseñas.
- * Solo abre la pagina y pinta encima. Es una prueba tecnica, nada mas.
+ * Por eso todo va por VOZ, en el momento, referido al boton que tienen
+ * delante. Y si se quedan parados, se les repite solo.
+ *
+ * Lo que esta app NO hace, a proposito: no escribe por ellos, no guarda
+ * datos, no pide contraseñas y no toca sus credenciales. Solo señala y
+ * habla. Cualquier cosa que se escriba, la escribe la persona.
  */
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
-    private lateinit var estado: TextView
     private lateinit var web: WebView
+    private var voz: TextToSpeech? = null
+    private var vozLista = false
+    private var ultimaFrase = ""
 
-    /** La pagina real de la FNMT donde se solicita el certificado. */
-    private val urlReal =
-        "https://www.sede.fnmt.gob.es/certificados/persona-fisica/obtener-certificado-software/solicitar-certificado"
+    /**
+     * Cita previa del DNI (Policia Nacional).
+     *
+     * Antes apuntaba al certificado digital de la FNMT, pero al mirar esa
+     * web de verdad se vio que obliga a instalar un programa de escritorio
+     * -en un movil el tramite no se puede terminar-. Este si se completa
+     * entero desde el telefono, y ademas tiene pantallas mucho mas simples.
+     */
+    private val urlInicio = "https://www.citapreviadnie.es/"
 
-    @SuppressLint("SetJavaScriptEnabled")
+    @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        voz = TextToSpeech(this, this)
+
         val raiz = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
+            setBackgroundColor(Color.WHITE)
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT
             )
         }
-
-        // Barra de estado propia: para ver de un vistazo si la prueba salio bien
-        estado = TextView(this).apply {
-            text = "Abriendo la web real de la FNMT…"
-            textSize = 15f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(Color.parseColor("#0a5fa8"))
-            setPadding(28, 34, 28, 28)
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        raiz.addView(
-            estado,
-            LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
-        )
 
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
-            settings.builtInZoomControls = false
+            addJavascriptInterface(Puente(), "Android")
 
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    estado.text = "Página cargada. Pintando la ayuda encima…"
-                    // pequeña espera: algunas sedes reordenan la pagina al terminar
-                    view?.postDelayed({ inyectarAyuda() }, 900)
-                }
-
-                override fun onReceivedError(
-                    view: WebView?, errorCode: Int, description: String?, failingUrl: String?
-                ) {
-                    estado.setBackgroundColor(Color.parseColor("#b3261e"))
-                    estado.text = "No se pudo abrir la web: " + (description ?: "error " + errorCode)
+                    // Cada vez que cambia de pantalla hay que volver a meter
+                    // la guia: al navegar, la pagina nueva llega limpia.
+                    view?.postDelayed({ inyectarGuia() }, 800)
                 }
             }
         }
@@ -89,23 +85,52 @@ class MainActivity : AppCompatActivity() {
         )
 
         setContentView(raiz)
-        web.loadUrl(urlReal)
+        web.loadUrl(urlInicio)
     }
 
-    /**
-     * Inyecta la capa de ayuda sobre la pagina real. Devuelve por consola el
-     * texto del elemento señalado, para poder confirmar que de verdad se ha
-     * enganchado a un elemento real de la FNMT y no a algo inventado.
-     */
-    private fun inyectarAyuda() {
-        web.evaluateJavascript(JS_AYUDA) { resultado ->
-            val limpio = resultado?.trim('"') ?: ""
-            if (limpio.isEmpty() || limpio == "null" || limpio.startsWith("ERROR")) {
-                estado.setBackgroundColor(Color.parseColor("#b3261e"))
-                estado.text = "No se pudo pintar encima. " + limpio
-            } else {
-                estado.setBackgroundColor(Color.parseColor("#0b7a3b"))
-                estado.text = "✅ Funciona. Señalando: " + limpio.replace("\\n", " ").take(48)
+    /** Mete guia.js (que vive dentro de la app) en la pagina de la FNMT. */
+    private fun inyectarGuia() {
+        val js = try {
+            assets.open("guia.js").bufferedReader().use { it.readText() }
+        } catch (e: Exception) {
+            hablar("No he podido cargar la ayuda. Cierre la aplicación y vuelva a abrirla.", true)
+            return
+        }
+        // Se limpia la marca para que la guia se reinicie en la pantalla nueva
+        web.evaluateJavascript("window.__guiaViva = false;") {
+            web.evaluateJavascript(js, null)
+        }
+    }
+
+    /* ---------- Puente entre la guia y la voz de Android ---------- */
+    inner class Puente {
+        /**
+         * @param frase   lo que hay que decir
+         * @param forzar  true si la persona ha pedido que se repita: entonces
+         *                se dice aunque sea lo mismo que acaba de sonar
+         */
+        @JavascriptInterface
+        fun decir(frase: String, forzar: Boolean) {
+            runOnUiThread { hablar(frase, forzar) }
+        }
+    }
+
+    private fun hablar(frase: String, forzar: Boolean) {
+        if (!vozLista) return
+        if (!forzar && frase == ultimaFrase) return   // no repetir sin motivo: agobia
+        ultimaFrase = frase
+        voz?.speak(frase, TextToSpeech.QUEUE_FLUSH, null, "guia")
+    }
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            val r = voz?.setLanguage(Locale("es", "ES"))
+            vozLista = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED
+            // despacio: se entiende mucho mejor, sobre todo con audifonos
+            voz?.setSpeechRate(0.86f)
+            if (vozLista) {
+                hablar("Le voy a ayudar a sacar el certificado digital. " +
+                       "Toque siempre donde vea el círculo naranja.", true)
             }
         }
     }
@@ -113,82 +138,9 @@ class MainActivity : AppCompatActivity() {
     override fun onBackPressed() {
         if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
-}
 
-/**
- * El codigo que se mete dentro de la pagina de la FNMT.
- *
- * Nota para el futuro: aqui el objetivo se busca a mano con palabras clave.
- * En la version buena esto lo decidiria la IA leyendo la estructura de la
- * pantalla (nunca lo que la persona haya escrito, por proteccion de datos).
- * Escrito sin comillas invertidas ni simbolos de dolar a proposito, para que
- * Kotlin no intente interpretarlo como plantilla.
- */
-private const val JS_AYUDA = """
-(function(){
-  try{
-    var viejo = document.getElementById('__ayuda_mayores');
-    if(viejo) viejo.remove();
-
-    // Buscar un elemento real y visible de la pagina al que señalar
-    var cand = [].slice.call(document.querySelectorAll('a,button'));
-    cand = cand.filter(function(e){
-      var r = e.getBoundingClientRect();
-      return r.width > 40 && r.height > 10 && e.offsetParent !== null;
-    });
-    var obj = null;
-    for(var i=0;i<cand.length;i++){
-      if(/solicit|certificad|internet/i.test(cand[i].textContent)){ obj = cand[i]; break; }
+    override fun onDestroy() {
+        voz?.stop(); voz?.shutdown()
+        super.onDestroy()
     }
-    if(!obj) obj = cand[0];
-    if(!obj) return 'ERROR: no se encontro ningun elemento';
-
-    obj.scrollIntoView({block:'center'});
-    var r = obj.getBoundingClientRect();
-    var cx = r.left + Math.min(40, r.width/2);
-    var cy = r.top + r.height/2;
-
-    var capa = document.createElement('div');
-    capa.id = '__ayuda_mayores';
-
-    var punto = document.createElement('div');
-    punto.setAttribute('style',
-      'position:fixed;left:'+cx+'px;top:'+cy+'px;width:64px;height:64px;'+
-      'margin:-32px 0 0 -32px;border-radius:50%;border:6px solid #ff6b00;'+
-      'box-shadow:0 0 0 5px #fff,0 0 26px rgba(255,107,0,.95);'+
-      'z-index:2147483647;pointer-events:none;animation:__lat 1.2s ease-in-out infinite');
-
-    var mano = document.createElement('div');
-    mano.textContent = '\u{1F446}';
-    mano.setAttribute('style',
-      'position:fixed;left:'+(cx+12)+'px;top:'+(cy+20)+'px;font-size:34px;'+
-      'z-index:2147483647;pointer-events:none');
-
-    var panel = document.createElement('div');
-    panel.setAttribute('style',
-      'position:fixed;left:0;right:0;bottom:0;background:#0b7a3b;color:#fff;'+
-      'padding:20px 22px;z-index:2147483647;font-family:system-ui,sans-serif;'+
-      'box-shadow:0 -8px 30px rgba(0,0,0,.45)');
-    panel.innerHTML =
-      '<div style="font-size:15px;opacity:.9;margin-bottom:6px">Paso 1 de 4</div>'+
-      '<div style="font-size:28px;font-weight:800;line-height:1.25;margin-bottom:8px">'+
-      'Pulse donde está el círculo naranja.</div>'+
-      '<div style="font-size:17px;line-height:1.4;opacity:.95">'+
-      'Es la página oficial de verdad. Yo le voy acompañando.</div>';
-
-    var css = document.createElement('style');
-    css.textContent = '@keyframes __lat{0%,100%{transform:scale(1);opacity:1}'+
-                      '50%{transform:scale(1.3);opacity:.5}}';
-
-    capa.appendChild(css);
-    capa.appendChild(punto);
-    capa.appendChild(mano);
-    capa.appendChild(panel);
-    document.documentElement.appendChild(capa);
-
-    return (obj.textContent || 'elemento').trim().substring(0,60);
-  }catch(e){
-    return 'ERROR: ' + e.message;
-  }
-})();
-"""
+}
