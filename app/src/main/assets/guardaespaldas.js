@@ -530,8 +530,36 @@
     }
   }
 
+  /* Mete lo que ha dicho la IA en la misma lista que las reglas, para
+     que compitan por gravedad como uno mas. La IA no manda sobre las
+     reglas ni al reves: gana el aviso mas grave.
+
+     Y la regla de oro se aplica IGUAL a la IA: si dice que señalemos
+     algo que huele a dinero, se avisa pero no se señala. No me fio ni
+     de ella para eso. */
+  function conIA(lista) {
+    if (!avisoIA || !avisoIA.hay_aviso) return lista;
+    var el = null;
+    if (avisoIA.senalar) {
+      var todos = [].slice.call(document.querySelectorAll('button,a,input[type=submit],input[type=button]'));
+      for (var i = 0; i < todos.length; i++) {
+        if (visible(todos[i]) && textoDe(todos[i]) === avisoIA.senalar) { el = todos[i]; break; }
+      }
+      if (el && /suscr[ií]b|pagar|abonar|premium|comprar/i.test(textoDe(el) + ' ' + entorno(el, 2))) {
+        el = null;
+      }
+    }
+    return lista.concat([{
+      el: el,
+      gravedad: avisoIA.gravedad || 1,
+      corto: avisoIA.corto || 'Atención',
+      voz: avisoIA.voz
+    }]);
+  }
+
   function latido() {
-    var t = trampas().filter(function (x) { return !callados[x.corto]; });
+    var t = conIA(trampas()).filter(function (x) { return !callados[x.corto]; });
+    t.sort(function (a, b) { return b.gravedad - a.gravedad; });
     if (!t.length) {
       // Todo tranquilo: se quita el recuadro y el aviso, pero se deja la
       // banda verde. Callarse del todo hacia imposible saber si estaba
@@ -559,10 +587,127 @@
     }
   }
 
+  /* ===================================================================
+     LA IA
+     ===================================================================
+     Hasta aqui todo lo de arriba son reglas que escribi a mano: solo
+     reconocen lo que se me ocurrio prever. Por eso fallaban en paginas
+     que no habia visto -las de adultos, las fraudulentas, las que se
+     inventan mañana-.
+
+     Esto le enseña la pantalla a una IA y le pregunta que le estan
+     pidiendo a la persona. Funciona en cualquier pagina, este escrita
+     como este.
+
+     Con dos condiciones que no se negocian:
+       - Las reglas mandan primero. Contestan al instante; la IA llega
+         despues a afinar. Nadie se queda mirando una pantalla parada.
+       - NUNCA se manda lo que la persona escribe. Solo las etiquetas,
+         los botones y si una casilla esta marcada. Su DNI, su telefono
+         y su tarjeta no salen de su movil.
+     =================================================================== */
+  var SERVIDOR = 'https://ai-council-ekax.onrender.com/guardian/mirar';
+  var avisoIA = null;          // lo ultimo que dijo la IA
+  var huellaPreguntada = '';   // para no repetir la misma pantalla
+  var preguntando = false;
+
+  function textoDe(e) { return limpio(e.textContent || e.value || ''); }
+
+  /* Recoge la ESTRUCTURA de la pantalla. Lo importante de esta funcion
+     es lo que NO recoge: en ningun sitio se lee el .value de un campo
+     de texto. Solo si esta vacio o no. */
+  function retrato() {
+    var botones = [];
+    [].slice.call(document.querySelectorAll('button,a,input[type=submit],input[type=button]'))
+      .forEach(function (b) {
+        if (!visible(b)) return;
+        var t = textoDe(b);
+        if (t.length > 1 && t.length < 60 && botones.indexOf(t) === -1) botones.push(t);
+      });
+
+    var campos = [];
+    [].slice.call(document.querySelectorAll('input,select,textarea')).forEach(function (c) {
+      if (!visible(c) || c.type === 'hidden') return;
+      var et = c.getAttribute('aria-label') || c.placeholder || '';
+      if (!et && c.id) {
+        var l = document.querySelector('label[for="' + c.id + '"]');
+        if (l) et = limpio(l.textContent);
+      }
+      if (!et) et = limpio(entorno(c, 1)).slice(0, 90);
+      if (!et) et = c.name || c.type;
+      campos.push({
+        etiqueta: String(et).slice(0, 160),
+        tipo: (c.type || c.tagName).toLowerCase().slice(0, 20),
+        marcada: c.type === 'checkbox' ? !!c.checked : null,
+        vacia: (c.value || '').trim().length === 0     // SIN decir que hay
+      });
+    });
+
+    var encabezados = [], textos = [], importes = [];
+    [].slice.call(document.querySelectorAll('h1,h2,h3')).forEach(function (h) {
+      if (visible(h) && encabezados.length < 12) {
+        var t = textoDe(h); if (t) encabezados.push(t.slice(0, 120));
+      }
+    });
+    [].slice.call(document.querySelectorAll('p,li,label,span,div')).forEach(function (z) {
+      if (z.children.length || !visible(z)) return;
+      var t = textoDe(z);
+      if (t.length > 25 && t.length < 220 && textos.length < 25) textos.push(t);
+      var pr = t.match(/\d+[.,]\d{2}\s*€|€\s*\d+[.,]\d{2}/);
+      if (pr && importes.length < 10 && importes.indexOf(pr[0]) === -1) importes.push(pr[0]);
+    });
+
+    return {
+      dominio: location.hostname,          // el dominio, NUNCA la url entera:
+                                           // las urls llevan identificadores
+                                           // y a veces datos dentro
+      titulo: (document.title || '').slice(0, 200),
+      encabezados: encabezados,
+      botones: botones.slice(0, 40),
+      campos: campos.slice(0, 25),
+      textos: textos,
+      importes: importes
+    };
+  }
+
+  function huellaDe(r) {
+    return r.dominio + '|' + r.botones.slice(0, 12).join(',') + '|' +
+           r.campos.map(function (c) { return c.etiqueta + c.marcada; }).slice(0, 8).join(',');
+  }
+
+  function preguntarIA() {
+    if (preguntando) return;
+    var r = retrato();
+    // Sin botones ni campos no hay nada que valorar: no se gasta llamada
+    if (!r.botones.length && !r.campos.length) return;
+    var h = huellaDe(r);
+    if (h === huellaPreguntada) return;
+    huellaPreguntada = h;
+    preguntando = true;
+
+    fetch(SERVIDOR, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Movil': window.__idMovil || 'app' },
+      body: JSON.stringify(r)
+    })
+      .then(function (res) { return res.json(); })
+      .then(function (a) {
+        preguntando = false;
+        if (a && a.hay_aviso) { avisoIA = a; latido(); }
+        else avisoIA = null;
+      })
+      .catch(function () {
+        // Sin internet o servidor caido: las reglas siguen solas.
+        preguntando = false;
+      });
+  }
+
   crear();
   setTimeout(latido, 900);
   setInterval(latido, 900);          // mas seguido: los avisos de cookies
                                      // se mueven y aparecen tarde
+  setTimeout(preguntarIA, 1800);     // la IA llega despues, sin frenar nada
+  setInterval(preguntarIA, 4000);
 
   function recolocar() {
     apartarContenido();
