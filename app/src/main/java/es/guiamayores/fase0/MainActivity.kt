@@ -41,14 +41,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var ultimaFrase = ""
 
     /**
-     * Cita previa del DNI (Policia Nacional).
-     *
-     * Antes apuntaba al certificado digital de la FNMT, pero al mirar esa
-     * web de verdad se vio que obliga a instalar un programa de escritorio
-     * -en un movil el tramite no se puede terminar-. Este si se completa
-     * entero desde el telefono, y ademas tiene pantallas mucho mas simples.
+     * Portada propia, dentro de la app: desde ahi se elige que hacer.
+     * Antes se abria directamente la sede del tramite, pero la app ya no
+     * sirve para una sola cosa: puede guiar un tramite o vigilar una
+     * tienda, y eso hay que poder elegirlo.
      */
-    private val urlInicio = "https://www.citapreviadnie.es/"
+    private val urlInicio = "file:///android_asset/inicio.html"
 
     @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,8 +91,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     // Cada vez que cambia de pantalla hay que volver a meter
-                    // la guia: al navegar, la pagina nueva llega limpia.
-                    view?.postDelayed({ inyectarGuia() }, 800)
+                    // la ayuda: al navegar, la pagina nueva llega limpia.
+                    view?.postDelayed({ inyectarAyuda(url) }, 800)
                 }
             }
         }
@@ -107,16 +105,30 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         web.loadUrl(urlInicio)
     }
 
-    /** Mete guia.js (que vive dentro de la app) en la pagina de la FNMT. */
-    private fun inyectarGuia() {
+    /**
+     * Decide que ayuda meter en la pagina segun donde este la persona.
+     *
+     *   - En la web de la cita del DNI -> la GUIA: hay un tramite concreto
+     *     que completar, asi que va señalando casilla por casilla.
+     *   - En cualquier otra web (una tienda, por ejemplo) -> el
+     *     GUARDAESPALDAS: aqui no hay nada que completar, lo que hace
+     *     falta es que alguien avise de las casillas ya marcadas, los
+     *     cobros mensuales escondidos y los "gratis" que luego se cobran.
+     *   - En la pantalla de inicio de la propia app -> nada.
+     */
+    private fun inyectarAyuda(url: String?) {
+        val u = url ?: return
+        if (u.startsWith("file://")) return                 // nuestra propia portada
+
+        val fichero = if (u.contains("citapreviadnie")) "guia.js" else "guardaespaldas.js"
         val js = try {
-            assets.open("guia.js").bufferedReader().use { it.readText() }
+            assets.open(fichero).bufferedReader().use { it.readText() }
         } catch (e: Exception) {
             hablar("No he podido cargar la ayuda. Cierre la aplicación y vuelva a abrirla.", true)
             return
         }
-        // Se limpia la marca para que la guia se reinicie en la pantalla nueva
-        web.evaluateJavascript("window.__guiaViva = false;") {
+        // Se limpian las marcas para que la ayuda se reinicie en la pantalla nueva
+        web.evaluateJavascript("window.__guiaViva=false;window.__guardaViva=false;") {
             web.evaluateJavascript(js, null)
         }
     }
@@ -148,8 +160,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             // despacio: se entiende mucho mejor, sobre todo con audifonos
             voz?.setSpeechRate(0.86f)
             if (vozLista) {
-                hablar("Le voy a ayudar a sacar el certificado digital. " +
-                       "Toque siempre donde vea el círculo naranja.", true)
+                hablar("Hola. Dígame qué quiere hacer tocando uno de los dos botones grandes.", true)
             }
         }
     }
