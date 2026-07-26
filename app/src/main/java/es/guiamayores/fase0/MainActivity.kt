@@ -116,9 +116,16 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
      *     cobros mensuales escondidos y los "gratis" que luego se cobran.
      *   - En la pantalla de inicio de la propia app -> nada.
      */
+    private var portadaVisible = false
+
     private fun inyectarAyuda(url: String?) {
         val u = url ?: return
-        if (u.startsWith("file://")) return                 // nuestra propia portada
+        if (u.startsWith("file://")) {                      // nuestra propia portada
+            portadaVisible = true
+            saludar()
+            return
+        }
+        portadaVisible = false
 
         val fichero = if (u.contains("citapreviadnie")) "guia.js" else "guardaespaldas.js"
         val js = try {
@@ -146,6 +153,26 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    /**
+     * Saluda cuando se dan las dos condiciones a la vez: la voz esta lista
+     * Y la portada ya esta en pantalla. Cual de las dos llega antes cambia
+     * de un movil a otro, asi que en vez de adivinar se llama desde los dos
+     * sitios y gana el ultimo. Si la voz todavia se esta preparando, se
+     * reintenta unas cuantas veces antes de rendirse.
+     */
+    private var yaSaludado = false
+    private var intentosSaludo = 0
+
+    private fun saludar() {
+        if (yaSaludado || !portadaVisible) return
+        if (!vozLista) {
+            if (intentosSaludo++ < 12) web.postDelayed({ saludar() }, 500)
+            return
+        }
+        yaSaludado = true
+        hablar("Hola. Dígame qué quiere hacer, tocando uno de los dos botones grandes.", true)
+    }
+
     private fun hablar(frase: String, forzar: Boolean) {
         if (!vozLista) return
         if (!forzar && frase == ultimaFrase) return   // no repetir sin motivo: agobia
@@ -159,9 +186,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             vozLista = r != TextToSpeech.LANG_MISSING_DATA && r != TextToSpeech.LANG_NOT_SUPPORTED
             // despacio: se entiende mucho mejor, sobre todo con audifonos
             voz?.setSpeechRate(0.86f)
-            if (vozLista) {
-                hablar("Hola. Dígame qué quiere hacer tocando uno de los dos botones grandes.", true)
-            }
+            // El saludo NO se dice aqui. La voz suele estar lista antes de
+            // que la pantalla se vea, y entonces se habla al vacio: la
+            // persona no oye nada. Se dice desde saludar(), cuando la
+            // portada ya esta delante.
+            saludar()
         }
     }
 
