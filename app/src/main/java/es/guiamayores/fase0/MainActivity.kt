@@ -239,7 +239,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
         portadaVisible = false
 
-        val fichero = if (u.contains("citapreviadnie")) "guia.js" else "guardaespaldas.js"
+        val fichero = when {
+            u.contains("citapreviadnie") -> "guia.js"
+            u.contains("dgt.gob.es") -> "dgt_baja.js"
+            else -> "guardaespaldas.js"
+        }
 
         /* LA AYUDA SE BAJA DEL SERVIDOR, NO VIENE DENTRO DE LA APP.
          *
