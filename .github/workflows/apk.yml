@@ -44,15 +44,22 @@ jobs:
           mkdir -p salida
           cp app/build/outputs/apk/debug/*.apk salida/guia-mayores.apk
 
+      # Se borra y se rehace entera en cada compilacion.
+      #
+      # Antes solo se subia el fichero encima, pero la etiqueta "ultima"
+      # se quedaba apuntando al primer commit: la pagina seguia enseñando
+      # una version vieja y no habia forma de saber si el apk era el
+      # nuevo o no. Borrandola y creandola de cero, lo que se ve en la
+      # pagina es siempre lo ultimo, sin ambiguedad.
       - name: Publicar en el enlace fijo
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create ultima \
-            --title "Ultima version" \
-            --notes "Se actualiza sola en cada cambio. Toque el fichero .apk para instalar." \
-            || echo "la release ya existia, solo se actualiza el fichero"
-          gh release upload ultima salida/guia-mayores.apk --clobber
+          gh release delete ultima --yes --cleanup-tag || true
+          sleep 3
+          gh release create ultima salida/guia-mayores.apk \
+            --title "Ultima version - $(date '+%d/%m %H:%M')" \
+            --notes "Compilado desde el commit ${GITHUB_SHA:0:7}. Toque el fichero .apk para instalar."
 
       # Se deja tambien como artifact, por si algun dia hace falta
       - name: Guardar copia
