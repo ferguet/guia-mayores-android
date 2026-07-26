@@ -229,12 +229,38 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun inyectarAyuda(url: String?) {
         val u = url ?: return
-        // Nuestras propias pantallas: ni se vigilan ni se guian.
-        // Ahora pueden venir de dentro del apk (file://) o del servidor,
-        // asi que se reconocen por la ruta /guardian/.
-        if (u.startsWith("file://") || u.contains("/guardian/")) {
+        // La copia de dentro del apk es siempre de fiar: no depende de
+        // ningun servidor, asi que aqui no hace falta comprobar nada mas.
+        if (u.startsWith("file://")) {
             portadaVisible = true
             saludar()
+            return
+        }
+        // Nuestra portada real, servida en vivo desde Render. OJO: la
+        // direccion empieza por /guardian/ tanto si el servidor responde
+        // bien como si esta caido o suspendido (Render sigue contestando
+        // ESA MISMA direccion, solo que con su propio aviso de "servicio
+        // suspendido" en vez de nuestra pagina). Fiarse solo de la
+        // direccion fue el fallo real de antes: la app se creia que habia
+        // cargado la portada aunque lo que hubiera en pantalla fuese el
+        // aviso de Render. Por eso aqui se comprueba el CONTENIDO de
+        // verdad, buscando el elemento "lista" que solo existe en nuestra
+        // portada -si no aparece, se asume que el servidor no ha dado
+        // nuestra pagina y se usa la copia de seguridad de dentro del apk,
+        // que siempre funciona, este Render vivo o no.
+        if (u.contains("/guardian/")) {
+            web.evaluateJavascript("!!document.getElementById('lista')") { hay ->
+                if (hay == "true") {
+                    portadaVisible = true
+                    saludar()
+                } else {
+                    // No hace falta marcar nada aqui: al cargar la copia
+                    // local se dispara otra vez onPageFinished, esta vez
+                    // con file://, que es el caso de arriba y ya se
+                    // encarga de marcar portadaVisible y saludar.
+                    web.loadUrl(urlInicioLocal)
+                }
+            }
             return
         }
         portadaVisible = false
