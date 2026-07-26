@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var voz: TextToSpeech? = null
     private var vozLista = false
     private var ultimaFrase = ""
+    private var ultimaUbicacion = ""
 
     /**
      * Portada propia, dentro de la app: desde ahi se elige que hacer.
@@ -85,7 +86,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 .replace("; wv", "")
                 .replace(Regex("Version/\\d+\\.\\d+ "), "")
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+            settings.setGeolocationEnabled(true)
             addJavascriptInterface(Puente(), "Android")
+
+            // La pantalla de ayuda pide la ubicacion. Solo se concede a
+            // nuestras propias paginas (file://): a una web cualquiera de
+            // internet no se le da nunca.
+            webChromeClient = object : android.webkit.WebChromeClient() {
+                override fun onGeolocationPermissionsShowPrompt(
+                    origin: String?, callback: android.webkit.GeolocationPermissions.Callback?
+                ) {
+                    val propia = origin?.startsWith("file://") == true
+                    callback?.invoke(origin, propia, false)
+                }
+            }
 
             webViewClient = object : WebViewClient() {
                 /**
@@ -93,6 +107,34 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                  * Si no, la voz sigue explicando la pantalla anterior mientras
                  * la persona ya esta en otra: la confunde mas que ayudarla.
                  */
+                /**
+                 * Muchas tiendas (AliExpress, Miravia, Temu...) intentan
+                 * saltar a su propia aplicacion con enlaces raros del tipo
+                 * "intent://" o "aliexpress://". Nuestro navegador no sabe
+                 * abrirlos y la pantalla se quedaba en blanco o se salia
+                 * sola -que es lo que se veia-. Aqui se ignoran y se sigue
+                 * navegando por la web normal, que ademas es donde nuestra
+                 * ayuda puede proteger: dentro de su app no llegamos.
+                 */
+                override fun shouldOverrideUrlLoading(
+                    view: WebView?, request: android.webkit.WebResourceRequest?
+                ): Boolean {
+                    val esquema = request?.url?.scheme?.lowercase() ?: return false
+                    // El telefono si tiene que poder abrirse: es lo que usa
+                    // la pantalla de ayuda si falla el puente con Android.
+                    if (esquema == "tel" || esquema == "sms" || esquema == "mailto") {
+                        try {
+                            startActivity(android.content.Intent(
+                                android.content.Intent.ACTION_VIEW, request.url))
+                        } catch (e: Exception) { }
+                        return true
+                    }
+                    if (esquema != "http" && esquema != "https" && esquema != "file") {
+                        return true      // bloqueado: no salimos de la web
+                    }
+                    return false
+                }
+
                 override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                     super.onPageStarted(view, url, favicon)
                     voz?.stop()
@@ -114,6 +156,18 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         setContentView(raiz)
         web.loadUrl(urlInicio)
+
+        // La ubicacion se pide una sola vez, al arrancar, para que cuando
+        // de verdad haga falta (pantalla de ayuda) ya este concedida y no
+        // haya que pelearse con un permiso en mitad de un susto.
+        if (androidx.core.content.ContextCompat.checkSelfPermission(
+                this, android.Manifest.permission.ACCESS_FINE_LOCATION
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1
+            )
+        }
     }
 
     /**
@@ -161,6 +215,36 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         @JavascriptInterface
         fun decir(frase: String, forzar: Boolean) {
             runOnUiThread { hablar(frase, forzar) }
+        }
+
+        /**
+         * Abre el marcador del telefono con el numero ya puesto.
+         *
+         * Se usa ACTION_DIAL y no ACTION_CALL a proposito: DIAL solo
+         * PREPARA la llamada, y es la persona quien pulsa el boton verde.
+         * Una app que marca sola puede llamar al 112 desde un bolsillo, y
+         * eso ocupa una linea de emergencias que otro puede necesitar.
+         */
+        @JavascriptInterface
+        fun llamar(numero: String) {
+            runOnUiThread {
+                try {
+                    val i = android.content.Intent(
+                        android.content.Intent.ACTION_DIAL,
+                        android.net.Uri.parse("tel:" + numero.filter { it.isDigit() || it == '+' })
+                    )
+                    startActivity(i)
+                } catch (e: Exception) {
+                    hablar("No he podido abrir el teléfono. Marque usted el número.", true)
+                }
+            }
+        }
+
+        /** La ubicacion se queda solo aqui, para poder decirla en voz alta
+         *  si hace falta. No se guarda en disco ni se manda a ningun sitio. */
+        @JavascriptInterface
+        fun guardarUbicacion(donde: String) {
+            ultimaUbicacion = donde
         }
 
         /**

@@ -117,6 +117,66 @@
       }
     }
 
+    /* 0. EL PUNTO DE NO RETORNO: el boton que cobra de verdad.
+     *
+     * Va el primero de todos porque es el unico momento del que no se
+     * vuelve. Todo lo demas se puede deshacer; esto no. Muchas personas
+     * mayores no distinguen "meter en la cesta" de "pagar", porque los
+     * botones se parecen y estan cerca.
+     */
+    var botonPagar = botonCon2(['comprar ahora', 'comprar con 1 clic', 'comprar con un clic',
+      'realizar el pedido', 'realizar pedido', 'finalizar compra', 'finalizar pedido',
+      'pagar ahora', 'confirmar pedido', 'confirmar compra', 'tramitar pedido']);
+    if (botonPagar) {
+      lista.push({
+        el: botonPagar, gravedad: 4, corto: 'Esto ya es pagar',
+        voz: 'Pare un momento. Este boton no es para mirar ni para guardar: en cuanto lo pulse, ' +
+             'la compra esta hecha y le cobran el dinero. No hay una pantalla mas para confirmar. ' +
+             'Si queria seguir mirando o pensarselo, este no es el boton. Si esta seguro, adelante.'
+      });
+    }
+
+    /* 0.bis Elegir forma de pago. Es el paso anterior al cobro y ahi se
+     * cuelan cosas: pagar a plazos con intereses, tarjetas de credito de
+     * la propia tienda, financiaciones... */
+    var textoPago = limpio(document.body.textContent).slice(0, 6000);
+    if (/bizum/i.test(textoPago) && /tarjeta/i.test(textoPago) &&
+        /forma de pago|m[eé]todo de pago|elige c[oó]mo pagar/i.test(textoPago)) {
+      var aPlazos = botonCon2(['a plazos', 'financiar', 'paga en 3', 'paga en 4', 'aplazar']);
+      lista.push({
+        el: aPlazos, gravedad: 3, corto: 'Cómo va a pagar',
+        voz: 'Le estan preguntando como quiere pagar. Con tarjeta o con bizum, el dinero sale de su cuenta y se acabo. ' +
+             'Pero si elige pagar a plazos o financiar, eso es un prestamo: le van a cobrar todos los meses y normalmente con intereses. ' +
+             'Si puede pagarlo de una vez, salga mas barato.'
+      });
+    }
+
+    /* 0.ter Meter en la cesta: NO es peligroso, pero mucha gente cree
+     * que ya ha comprado y se queda tranquila, o al reves, cree que
+     * comprando es solo mirar. Un aviso corto y tranquilizador. */
+    var botonCesta = botonCon2(['añadir a la cesta', 'anadir a la cesta', 'añadir al carrito',
+      'agregar al carrito', 'añadir a la bolsa']);
+    if (botonCesta && !botonPagar) {
+      lista.push({
+        el: botonCesta, gravedad: 1, corto: 'Esto no cobra',
+        voz: 'Tranquilo, este boton no le cobra nada. Solo guarda el articulo en una lista, como el carro del supermercado. ' +
+             'Todavia puede quitarlo o dejarlo ahi. El cobro es mas adelante y yo se lo avisare.'
+      });
+    }
+
+    /* 0.quater "Regalo", "premio", "recogelo en la aplicacion".
+     * Tipico de Temu y similares: no es un regalo, es el anzuelo para
+     * que instale la app y para que compre. */
+    var botonRegalo = botonCon2(['recoge tu regalo', 'obtener regalo', 'obtenlo en la aplicaci',
+      'reclama tu premio', 'has ganado', 'gira la ruleta', 'consigue tu regalo', 'abrir en la app']);
+    if (botonRegalo) {
+      lista.push({
+        el: botonRegalo, gravedad: 3, corto: 'No es un regalo',
+        voz: 'Eso que le ofrecen no es un regalo de verdad. Es el gancho para que instale su aplicacion y para que acabe comprando. ' +
+             'Nadie regala nada por entrar en una pagina. Puede seguir mirando sin tocar eso: no se pierde nada.'
+      });
+    }
+
     /* 3.bis PEDIR OFERTA / PRESUPUESTO / INFORMACION / DONAR.
      *
      * Visto en la web de un fabricante de coches: das a "pedir oferta" y
@@ -177,6 +237,43 @@
       }
     }
 
+    /* 3.quater BOTON DE SUSCRIBIRSE SUELTO.
+     * No dentro de un formulario ni de un muro: el tipico "Suscribete"
+     * o "Hazte premium" que esta por ahi en medio de la pagina. */
+    var botonSus = botonCon2(['suscríbete', 'suscribete', 'hazte premium', 'hazte socio',
+      'prueba premium', 'empezar prueba', 'suscribirme', 'quiero premium']);
+    if (botonSus) {
+      lista.push({
+        el: botonSus, gravedad: 2, corto: 'Es una cuota',
+        voz: 'Eso de ahi no es una compra suelta: es apuntarse a pagar todos los meses. ' +
+             'Se lo cobran solos, sin volver a preguntarle, hasta que usted vaya y lo cancele. ' +
+             'Y cancelarlo suele ser mas dificil que apuntarse. Si solo queria mirar, no hace falta.'
+      });
+    }
+
+    /* 3.quinquies PIDEN EL TELEFONO O EL CORREO PARA "IDENTIFICARSE".
+     * En Amazon y otras, la primera vez sale un recuadro rojo pidiendo
+     * el telefono o el correo. El rojo asusta y parece que ha pasado
+     * algo malo: hay que explicar que es normal y para que es. */
+    var campoIdent = null;
+    var todosCampos = [].slice.call(document.querySelectorAll('input[type=text],input[type=email],input[type=tel]'));
+    for (var w = 0; w < todosCampos.length; w++) {
+      var cc = todosCampos[w];
+      if (!visible(cc) || cc.value.trim()) continue;
+      var ctxC = (cc.name + ' ' + cc.id + ' ' + cc.placeholder + ' ' + entorno(cc, 2)).toLowerCase();
+      if (/tel[eé]fono m[oó]vil|n[uú]mero de tel[eé]fono|correo electr[oó]nico|email|identif|iniciar sesi|reg[ií]strate/.test(ctxC)) {
+        campoIdent = cc; break;
+      }
+    }
+    if (campoIdent && !botonPagar) {
+      lista.push({
+        el: campoIdent, gravedad: 1, corto: 'Es para entrar',
+        voz: 'No se asuste si lo ve en rojo, no ha hecho nada mal. Solo le estan pidiendo su telefono o su correo ' +
+             'para saber quien es, como cuando le piden el nombre en una tienda. Todavia no le van a cobrar nada. ' +
+             'Si no quiere darlo, puede cerrar esto y seguir mirando sin comprar.'
+      });
+    }
+
     /* 4. Aviso de cookies.
      *
      * OJO, AQUI SE METIO LA PATA UNA VEZ Y NO PUEDE VOLVER A PASAR.
@@ -199,7 +296,10 @@
       var b = botones[m];
       if (!visible(b)) continue;
       var s = limpio(b.textContent || b.value).toLowerCase();
-      if (/aceptar todas|acepto|aceptar y continuar|permitir todas/.test(s)) hayCookies = true;
+      // "Aceptar todo" (sin la ese) lo usan Temu, YouTube y muchas mas,
+      // y antes se escapaba entero: no se detectaba el aviso y la app
+      // se quedaba callada justo donde mas falta hacia.
+      if (/aceptar todas|aceptar todo|acepto|aceptar y continuar|permitir todas|permitir todo|de acuerdo/.test(s)) hayCookies = true;
       if (/suscr[ií]b|suscripci[oó]n|pagar|abonar|hazte socio|premium|sin publicidad|desde \d/.test(s)) hayPago = true;
       if (/rechazar|solo (las )?necesarias|solo esenciales|denegar|continuar sin aceptar|no aceptar/.test(s)) {
         // Y aunque ponga "rechazar": si al lado huele a dinero, no vale
@@ -339,9 +439,22 @@
     document.documentElement.appendChild(capa);
   }
 
+  /* La barra de abajo tapaba el final de la pagina y no habia forma de
+     leer lo que ponia ahi. Se le mete a la propia pagina un hueco al
+     final igual de alto que la barra, asi nada queda escondido. */
+  function apartarContenido() {
+    var alto = 0;
+    if (barra && barra.style.display !== 'none') alto = barra.offsetHeight;
+    else if (tranquilo && tranquilo.style.display !== 'none') alto = tranquilo.offsetHeight;
+    if (alto > 0 && document.body) {
+      document.body.style.paddingBottom = (alto + 16) + 'px';
+    }
+  }
+
   function rodear(el) {
     var r = el.getBoundingClientRect();
-    if (r.top < 60 || r.bottom > window.innerHeight - 150) {
+    var altoBarra = (barra.style.display !== 'none') ? barra.offsetHeight : tranquilo.offsetHeight;
+    if (r.top < 60 || r.bottom > window.innerHeight - altoBarra - 30) {
       el.scrollIntoView({ block: 'center', behavior: 'smooth' });
       r = el.getBoundingClientRect();
     }
@@ -392,10 +505,28 @@
   }
 
   crear();
-  setTimeout(latido, 1200);
-  setInterval(latido, 1600);
-  window.addEventListener('scroll', function () {
+  setTimeout(latido, 900);
+  setInterval(latido, 900);          // mas seguido: los avisos de cookies
+                                     // se mueven y aparecen tarde
+
+  function recolocar() {
+    apartarContenido();
     var t = trampas();
-    if (t.length) rodear(t[0].el);
-  }, true);
+    if (t.length && t[0].el) rodear(t[0].el);
+  }
+  window.addEventListener('scroll', recolocar, true);
+  window.addEventListener('resize', recolocar);
+
+  /* Los avisos de cookies aparecen despues de que la pagina cargue, y
+     muchos se mueven o cambian de sitio segun se va usando. Antes el
+     recuadro se quedaba clavado donde estaba al principio. Vigilando los
+     cambios de la pagina se recoloca solo en cuanto algo se mueve. */
+  try {
+    var vigia = new MutationObserver(function () {
+      clearTimeout(window.__gRe);
+      window.__gRe = setTimeout(recolocar, 250);
+    });
+    vigia.observe(document.documentElement, { childList: true, subtree: true, attributes: true,
+                                              attributeFilter: ['style', 'class'] });
+  } catch (e) {}
 })();

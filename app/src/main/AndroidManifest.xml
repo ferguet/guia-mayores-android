@@ -1,8 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Unico permiso: acceso a internet, para poder abrir la sede real. -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Ubicacion: SOLO se usa en la pantalla de ayuda, para poder decir
+         donde esta la persona cuando llama a su familia o al 112. El resto
+         del tiempo la app ni la pide ni la mira. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- Para abrir el marcador de telefono con el numero puesto. NO se
+         pide CALL_PHONE a proposito: ese permiso permitiria llamar sin
+         que la persona lo sepa, y aqui la llamada la da siempre ella. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+            <data android:scheme="tel" />
+        </intent>
+    </queries>
 
     <application
         android:label="Guía · Fase 0"

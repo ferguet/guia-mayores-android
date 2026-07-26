@@ -5,82 +5,156 @@
 <title>Inicio</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <style>
-  /* Pantalla de arranque. Todo enorme y con muy pocas opciones: cuantas
-     mas cosas hay en la pantalla, mas se bloquean. */
+  /* Portada. Pocas cosas y muy grandes: cuantas mas opciones hay en la
+     pantalla, mas se bloquean. Lo que se usa a diario arriba, lo raro
+     abajo, y la ayuda siempre visible en un color que no se usa para
+     nada mas. */
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0; min-height:100%;}
   body{
     font-family:-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
-    background:#eef1f4; color:#141414; padding:22px 18px 40px;
+    background:#eef1f4; color:#141414; padding:20px 16px 130px;
   }
-  h1{font-size:27px; line-height:1.25; margin:8px 0 4px;}
-  .sub{font-size:17px; color:#5f5f5f; margin-bottom:26px; line-height:1.4;}
+  h1{font-size:26px; line-height:1.25; margin:6px 0 4px;}
+  .sub{font-size:16.5px; color:#5f5f5f; margin-bottom:22px; line-height:1.4;}
+
   .op{
-    display:block; width:100%; text-align:left; margin-bottom:16px;
-    padding:22px 20px; border:none; border-radius:18px; cursor:pointer;
+    display:flex; align-items:center; gap:14px; width:100%; text-align:left;
+    margin-bottom:13px; padding:19px 18px; border:none; border-radius:18px;
     background:#0b7a3b; color:#fff; box-shadow:0 5px 0 #065c2c;
   }
   .op.azul{background:#0a5fa8; box-shadow:0 5px 0 #083f70;}
+  .op.gris{background:#fff; color:#141414; box-shadow:0 4px 0 #c9cfd6; border:2px solid #d6dbe1;}
   .op:active{transform:translateY(4px); box-shadow:0 1px 0 #065c2c;}
-  .op b{font-size:23px; display:block; line-height:1.25;}
-  .op span{font-size:16px; opacity:.93; display:block; margin-top:5px; line-height:1.35;}
-  .otra{margin-top:34px; padding-top:22px; border-top:2px solid #d6dbe1;}
-  .otra p{font-size:14.5px; color:#5f5f5f; margin:0 0 10px;}
-  .fila{display:flex; gap:9px;}
+  .op .ic{font-size:32px; flex-shrink:0;}
+  .op .tx{flex:1; min-width:0;}
+  .op .tx b{font-size:21px; display:block; line-height:1.25;}
+  .op .tx span{font-size:15px; opacity:.93; display:block; margin-top:3px; line-height:1.3;}
+  .op .quitar{
+    flex-shrink:0; width:38px; height:38px; border-radius:50%; border:2px solid #bbb;
+    background:#fff; color:#888; font-size:17px;
+  }
+
+  h2{font-size:14px; color:#5f5f5f; text-transform:uppercase; letter-spacing:.07em;
+     margin:28px 4px 12px;}
+
+  .fila{display:flex; gap:9px; margin-bottom:12px;}
   .fila input{
-    flex:1; padding:14px; font-size:17px; border:2px solid #c3c9d0;
-    border-radius:11px; background:#fff; min-width:0;
+    flex:1; padding:15px; font-size:17px; border:2px solid #c3c9d0;
+    border-radius:12px; background:#fff; min-width:0;
   }
   .fila button{
-    flex-shrink:0; padding:14px 20px; font-size:17px; font-weight:700;
-    border:none; border-radius:11px; background:#5f5f5f; color:#fff;
+    flex-shrink:0; padding:15px 20px; font-size:17px; font-weight:700;
+    border:none; border-radius:12px; background:#5f5f5f; color:#fff;
   }
+
+  /* El boton de ayuda: morado, un color que no se usa para nada mas en
+     toda la app, y siempre pegado abajo. Si hace falta, tiene que estar
+     ahi sin buscarlo. */
+  #ayuda{
+    position:fixed; left:0; right:0; bottom:0; z-index:50;
+    padding:14px 16px calc(14px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg, rgba(238,241,244,0), #eef1f4 30%);
+  }
+  #ayuda button{
+    width:100%; padding:22px; border:none; border-radius:18px;
+    background:#7a1fa2; color:#fff; box-shadow:0 5px 0 #56166f;
+    font-size:25px; font-weight:800; display:flex; align-items:center;
+    justify-content:center; gap:12px;
+  }
+  #ayuda button:active{transform:translateY(4px); box-shadow:0 1px 0 #56166f;}
 </style>
 </head>
 <body>
 
 <h1>¿Qué quiere hacer?</h1>
-<div class="sub">Yo le voy acompañando y le aviso si algo intenta engañarle.</div>
+<div class="sub">Yo le acompaño y le aviso si algo intenta engañarle.</div>
 
-<button class="op" onclick="abrir('https://www.citapreviadnie.es/')">
-  <b>🪪 Pedir cita para el DNI</b>
-  <span>Le guío casilla por casilla</span>
+<div id="lista"></div>
+
+<h2>Otra cosa</h2>
+<div class="fila">
+  <input id="dir" type="text" placeholder="escriba qué busca..." autocomplete="off">
+  <button onclick="irADireccion()">Buscar</button>
+</div>
+<button class="op gris" onclick="anadir()">
+  <span class="ic">➕</span>
+  <span class="tx"><b>Añadir una página mía</b><span>Para tenerla siempre a mano</span></span>
 </button>
 
-<button class="op azul" onclick="abrir('https://www.amazon.es/')">
-  <b>🛒 Comprar por internet</b>
-  <span>Le aviso de cobros escondidos y casillas marcadas</span>
-</button>
-
-<div class="otra">
-  <p>O escriba qué busca, con sus palabras:</p>
-  <div class="fila">
-    <input id="dir" type="text" placeholder="la seat, el ayuntamiento..." autocomplete="off">
-    <button onclick="irADireccion()">Buscar</button>
-  </div>
+<div id="ayuda">
+  <button onclick="location.href='emergencia.html'">
+    <span>🆘</span><span>Necesito ayuda</span>
+  </button>
 </div>
 
 <script>
-function abrir(u){ location.href = u; }
+/* ---------------------------------------------------------------------
+   FAVORITOS
+   Las personas mayores no navegan: van a cuatro sitios y siempre los
+   mismos. Buscar cada vez es una barrera enorme, y ademas es donde se
+   cuelan las paginas falsas que imitan a las de verdad. Con un boton
+   fijo se va siempre al sitio correcto.
+   Se guardan en el propio movil, no salen a ningun sitio.
+   --------------------------------------------------------------------- */
+var CLAVE = 'paginas_favoritas_v1';
 
-/* Antes esto era una casilla de direcciones y fallaba constantemente:
-   habia que escribir "www.loquesea.es" sin equivocarse en un solo
-   caracter, y cualquier fallo dejaba la pantalla en blanco. Nadie
-   escribe direcciones asi, y menos con un teclado pequeño.
+var PORDEFECTO = [
+  { ic:'🪪', nom:'Pedir cita para el DNI', des:'Le guío casilla por casilla',
+    url:'https://www.citapreviadnie.es/', fija:true, color:'' },
+  { ic:'🛒', nom:'Amazon', des:'Le aviso de cobros escondidos',
+    url:'https://www.amazon.es/', fija:false, color:'azul' }
+];
 
-   Ahora funciona como buscador: si lo escrito parece una direccion de
-   verdad se va derecho ahi; si no, se busca. Asi vale poner "la seat"
-   o "ayuntamiento de mi pueblo" y funciona igual.
+function cargar(){
+  try{ var g = localStorage.getItem(CLAVE); if(g) return JSON.parse(g); }catch(e){}
+  return PORDEFECTO;
+}
+function guardar(l){ try{ localStorage.setItem(CLAVE, JSON.stringify(l)); }catch(e){} }
 
-   Se busca en DuckDuckGo a proposito: no monta muro de cookies ni pide
-   aceptar nada, que es justo de lo que estamos protegiendo. */
+var favoritas = cargar();
+
+function pintar(){
+  var h = '';
+  favoritas.forEach(function(p, i){
+    h += '<button class="op ' + (p.color||'') + '" onclick="abrir(' + i + ')">' +
+         '<span class="ic">' + p.ic + '</span>' +
+         '<span class="tx"><b>' + p.nom + '</b><span>' + (p.des||'') + '</span></span>' +
+         (p.fija ? '' :
+           '<span class="quitar" onclick="quitar(event,' + i + ')">✕</span>') +
+         '</button>';
+  });
+  document.getElementById('lista').innerHTML = h;
+}
+
+function abrir(i){ location.href = favoritas[i].url; }
+
+function quitar(ev, i){
+  ev.stopPropagation();
+  if(confirm('¿Quitar "' + favoritas[i].nom + '" de sus páginas?')){
+    favoritas.splice(i,1); guardar(favoritas); pintar();
+  }
+}
+
+function anadir(){
+  var nom = prompt('¿Cómo quiere llamarla?\n(por ejemplo: Mi banco, El periódico)');
+  if(!nom) return;
+  var dir = prompt('¿Cuál es la página?\n(por ejemplo: elpais.com)');
+  if(!dir) return;
+  dir = dir.trim();
+  if(!/^https?:\/\//i.test(dir)) dir = 'https://' + dir;
+  favoritas.push({ ic:'⭐', nom:nom.trim(), des:'', url:dir, fija:false, color:'gris' });
+  guardar(favoritas); pintar();
+}
+
+/* Buscador, no barra de direcciones: nadie escribe "www punto lo que sea
+   punto es" sin equivocarse en un teclado pequeño. DuckDuckGo a
+   proposito, que no monta muro de cookies. */
 function irADireccion(){
   var v = document.getElementById('dir').value.trim();
   if(!v) return;
-  var esDireccion = /^[^\s]+\.[a-z]{2,}(\/|$)/i.test(v);
-  if(esDireccion){
-    if(!/^https?:\/\//i.test(v)) v = 'https://' + v;
-    location.href = v;
+  if(/^[^\s]+\.[a-z]{2,}(\/|$)/i.test(v)){
+    location.href = (/^https?:\/\//i.test(v) ? v : 'https://' + v);
   } else {
     location.href = 'https://duckduckgo.com/?kl=es-es&q=' + encodeURIComponent(v);
   }
@@ -88,6 +162,8 @@ function irADireccion(){
 document.getElementById('dir').addEventListener('keydown', function(e){
   if(e.key === 'Enter') irADireccion();
 });
+
+pintar();
 </script>
 </body>
 </html>
