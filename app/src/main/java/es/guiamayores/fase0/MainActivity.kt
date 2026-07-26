@@ -139,6 +139,30 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         if (web.canGoBack()) web.goBack() else super.onBackPressed()
     }
 
+    /**
+     * Al salir de la app hay que CALLARSE. Antes solo se paraba la voz al
+     * cerrarla del todo (onDestroy), pero cuando alguien sale con el boton
+     * de inicio Android no la cierra: la deja en segundo plano. Resultado:
+     * la app seguia hablando sola por detras, que es de las cosas mas
+     * molestas que puede hacer un movil.
+     *
+     * Ademas de la voz hay que parar los temporizadores del navegador: si
+     * no, la guia sigue latiendo por dentro y vuelve a mandar frases.
+     */
+    override fun onPause() {
+        super.onPause()
+        voz?.stop()
+        ultimaFrase = ""        // al volver, que pueda repetir el paso actual
+        web.onPause()
+        web.pauseTimers()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        web.onResume()
+        web.resumeTimers()
+    }
+
     override fun onDestroy() {
         voz?.stop(); voz?.shutdown()
         super.onDestroy()

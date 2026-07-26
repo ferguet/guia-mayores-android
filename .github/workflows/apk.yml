@@ -1,14 +1,22 @@
-# Compila el APK en los servidores de GitHub, gratis.
+# Compila el APK y lo publica en un enlace FIJO.
 #
-# Asi Fran no necesita instalar Android Studio ni nada: sube el codigo,
-# GitHub lo compila, y el APK queda para descargar desde la pestaña
-# "Actions" del repositorio.
+# Antes habia que: entrar en Actions, abrir la compilacion, bajar hasta
+# Artifacts, descargar un zip, descomprimirlo, pasar el apk al movil e
+# instalarlo. Demasiados pasos para cada cambio.
+#
+# Ahora se publica en una "release" con la etiqueta "ultima", que se
+# sobrescribe en cada compilacion. Asi el enlace de descarga es SIEMPRE
+# EL MISMO: se guarda en favoritos del movil, se toca, y se instala.
+# Ni ordenador, ni zip, ni cables.
 name: Compilar APK
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:      # boton para lanzarlo a mano desde la web de GitHub
+  workflow_dispatch:
+
+permissions:
+  contents: write        # hace falta para publicar la release
 
 jobs:
   apk:
@@ -22,9 +30,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Sin gradle wrapper a proposito: el wrapper incluye un fichero
-      # binario que complica el repositorio. Aqui se instala Gradle
-      # directamente y se invoca igual.
       - name: Preparar Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -33,9 +38,26 @@ jobs:
       - name: Compilar
         run: gradle assembleDebug --no-daemon --stacktrace
 
-      - name: Guardar el APK para descargar
+      # Nombre fijo del fichero: asi el enlace de descarga no cambia nunca
+      - name: Renombrar
+        run: |
+          mkdir -p salida
+          cp app/build/outputs/apk/debug/*.apk salida/guia-mayores.apk
+
+      - name: Publicar en el enlace fijo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create ultima \
+            --title "Ultima version" \
+            --notes "Se actualiza sola en cada cambio. Toque el fichero .apk para instalar." \
+            || echo "la release ya existia, solo se actualiza el fichero"
+          gh release upload ultima salida/guia-mayores.apk --clobber
+
+      # Se deja tambien como artifact, por si algun dia hace falta
+      - name: Guardar copia
         uses: actions/upload-artifact@v4
         with:
-          name: guia-fase0-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: guia-mayores-apk
+          path: salida/guia-mayores.apk
           if-no-files-found: error

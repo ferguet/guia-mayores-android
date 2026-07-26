@@ -15,12 +15,30 @@ android {
         versionName = "0.1-fase0"
     }
 
+    // Llave de firma FIJA, guardada en el propio proyecto.
+    //
+    // Sin esto, cada compilacion en GitHub genera una llave nueva, y Android
+    // se niega a sustituir una app por otra firmada distinto: sale el error
+    // "conflicto de paquete" y hay que desinstalar a mano cada vez. Con una
+    // llave fija, las actualizaciones se instalan encima sin mas.
+    //
+    // Es la llave de DEPURACION estandar de Android (contraseña "android",
+    // conocida por todo el mundo). No protege nada y no es un secreto: si
+    // algun dia se publica en Google Play hara falta una llave de verdad,
+    // distinta y guardada aparte.
+    signingConfigs {
+        create("fija") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
-        // Solo compilamos la version de pruebas: se firma con la clave de
-        // depuracion que genera Android sola, asi no hace falta gestionar
-        // certificados de firma para instalarla en un movil propio.
         getByName("debug") {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("fija")
         }
     }
 

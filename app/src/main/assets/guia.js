@@ -102,6 +102,53 @@
       voz: 'Ya está todo relleno. Pulse este botón para enviarlo.' }
   ];
 
+  /* ---------------------------------------------------------------
+     PROBLEMAS: lo que pasa cuando algo sale mal.
+
+     Esto es tan importante como guiar. Cuando la pantalla les suelta un
+     error, la persona da por hecho que la ha liado ella, lo repite una y
+     otra vez, y acaba rindiendose convencida de que no sabe usar esto.
+     Muchas veces NO ES CULPA SUYA -no hay citas, se caduco la sesion-,
+     y nadie se lo dice nunca.
+
+     Cuando se detecta uno de estos casos, se avisa ANTES que cualquier
+     otro paso, se quita el circulo (no hay nada que pulsar) y se le
+     explica en voz alta que ha pasado y que puede hacer.
+     --------------------------------------------------------------- */
+  var PROBLEMAS = [
+    { patron: /no hay citas|sin citas disponibles|no existen citas|no se han encontrado citas|no hay huecos/i,
+      corto: 'No es culpa suya',
+      voz: 'Escuche bien esto: no ha hecho usted nada mal. Lo que pasa es que ahora mismo no quedan citas libres. Le pasa a todo el mundo. Suelen soltar citas nuevas por la mañana temprano, asi que lo mejor es volver a intentarlo mañana sobre las ocho. No hace falta que repita nada ahora.' },
+
+    { patron: /c[oó]digo de seguridad.{0,40}(no|incorrect|err)|caracteres.{0,30}no coinciden/i,
+      corto: 'Las letras, otra vez',
+      voz: 'Solo han fallado las letras torcidas del final. No se preocupe, es muy facil equivocarse porque se leen fatal. Le han puesto unas nuevas: copielas otra vez. Si no las ve bien, busque el botoncito para escucharlas.' },
+
+    { patron: /datos.{0,30}(no son correctos|incorrectos|err[oó]neos)|no coinciden los datos|no consta/i,
+      corto: 'Revise el DNI',
+      voz: 'Dice que los datos no le cuadran. Casi siempre es una de estas tres cosas: que la letra del de eneí se haya escrito junto a los números en vez de en su casilla, que el código del reverso tenga alguna letra cambiada, o la fecha de caducidad. Miremos el de eneí otra vez con calma, sin prisa.' },
+
+    { patron: /sesi[oó]n.{0,30}(caducad|expirad|finalizad)|tiempo de espera agotado/i,
+      corto: 'Empezamos de nuevo',
+      voz: 'Se ha agotado el tiempo que dan para rellenarlo. No es culpa suya: dan muy poco rato. Volvemos a empezar y esta vez lo hacemos del tirón. Tenga el de eneí a mano antes de empezar.' }
+  ];
+
+  function buscarProblema() {
+    // solo se mira lo que se VE en pantalla: asi no se confunde con
+    // textos de ayuda o avisos legales escondidos en el codigo
+    var zonas = [].slice.call(document.querySelectorAll('div,p,span,td,li,h1,h2,h3,strong,label'));
+    for (var i = 0; i < zonas.length; i++) {
+      var z = zonas[i];
+      if (z.children.length > 0 || !visible(z)) continue;
+      var t = (z.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t.length < 8 || t.length > 300) continue;
+      for (var j = 0; j < PROBLEMAS.length; j++) {
+        if (PROBLEMAS[j].patron.test(t)) return PROBLEMAS[j];
+      }
+    }
+    return null;
+  }
+
   /* Campos que hay que DEJAR VACIOS. No se señalan (haria pensar que
      falta rellenarlos), pero si la persona los toca se le explica.
      Sin esto, se quedan atascados intentando rellenar algo que no les
@@ -151,9 +198,30 @@
     rep.setAttribute('style',
       'flex-shrink:0;width:64px;height:64px;border-radius:50%;border:4px solid #fff;' +
       'background:transparent;color:#fff;font-size:27px');
+
+    // Toque normal: repetir lo ultimo.
+    // TRES toques seguidos: modo prueba, va soltando los avisos de
+    // problema uno tras otro. Sirve para oirlos todos sin tener que
+    // esperar a que ocurran de verdad (las citas agotadas o la sesion
+    // caducada no se pueden provocar cuando uno quiere). Va escondido
+    // a proposito: la persona mayor no lo va a encontrar por accidente.
+    var toques = 0, reloj = null, cual = 0;
     rep.onclick = function (ev) {
       ev.preventDefault(); ev.stopPropagation();
-      if (window.__ultimaVoz) decir(window.__ultimaVoz, true);
+      toques++;
+      clearTimeout(reloj);
+      reloj = setTimeout(function () {
+        if (toques >= 3) {
+          var p = PROBLEMAS[cual % PROBLEMAS.length];
+          cual++;
+          corto.textContent = '[prueba] ' + p.corto;
+          window.__ultimaVoz = p.voz;
+          decir(p.voz, true);
+        } else if (window.__ultimaVoz) {
+          decir(window.__ultimaVoz, true);
+        }
+        toques = 0;
+      }, 450);
     };
 
     barra.appendChild(corto); barra.appendChild(rep);
@@ -208,6 +276,24 @@
   var actual = null, quieto = 0;
 
   function latido() {
+    // PRIMERO los problemas. Si la pantalla trae un error, no tiene
+    // ningun sentido seguir señalando casillas: hay que explicarle que
+    // ha pasado y, sobre todo, que no es culpa suya.
+    var pega = buscarProblema();
+    if (pega) {
+      esconder();                       // no hay nada que pulsar
+      barra.style.background = '#0a5fa8';
+      if (actual !== 'problema:' + pega.corto) {
+        actual = 'problema:' + pega.corto;
+        quieto = 0;
+        corto.textContent = pega.corto;
+        window.__ultimaVoz = pega.voz;
+        decir(pega.voz, false);
+      }
+      return;
+    }
+    barra.style.background = '#0b7a3b';
+
     var paso = null, el = null;
     for (var i = 0; i < GUION.length; i++) {
       var e = GUION[i].buscar();
