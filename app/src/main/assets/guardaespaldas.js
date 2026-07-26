@@ -139,10 +139,16 @@
     /* 0.bis Elegir forma de pago. Es el paso anterior al cobro y ahi se
      * cuelan cosas: pagar a plazos con intereses, tarjetas de credito de
      * la propia tienda, financiaciones... */
-    var textoPago = limpio(document.body.textContent).slice(0, 6000);
-    if (/bizum/i.test(textoPago) && /tarjeta/i.test(textoPago) &&
-        /forma de pago|m[eé]todo de pago|elige c[oó]mo pagar/i.test(textoPago)) {
-      var aPlazos = botonCon2(['a plazos', 'financiar', 'paga en 3', 'paga en 4', 'aplazar']);
+    // Antes esto exigia que en la pagina saliera "bizum" Y "tarjeta" Y
+    // "forma de pago" a la vez, y casi nunca se cumplian las tres: el
+    // aviso no saltaba nunca. Ahora basta con que se hable de elegir
+    // pago, o que aparezcan dos formas de pago juntas.
+    var textoPago = limpio(document.body.textContent).slice(0, 9000);
+    var hablaDePagar = /forma de pago|m[eé]todo de pago|formas de pago|elige c[oó]mo pagar|c[oó]mo quieres pagar|datos de pago/i.test(textoPago);
+    var dosFormas = (/bizum/i.test(textoPago) ? 1 : 0) + (/tarjeta/i.test(textoPago) ? 1 : 0) +
+                    (/paypal/i.test(textoPago) ? 1 : 0) + (/contrarreembolso/i.test(textoPago) ? 1 : 0);
+    if (hablaDePagar || dosFormas >= 2) {
+      var aPlazos = botonCon2(['a plazos', 'financiar', 'paga en 3', 'paga en 4', 'aplazar', 'financiaci']);
       lista.push({
         el: aPlazos, gravedad: 3, corto: 'Cómo va a pagar',
         voz: 'Le estan preguntando como quiere pagar. Con tarjeta o con bizum, el dinero sale de su cuenta y se acabo. ' +
@@ -174,6 +180,32 @@
         el: botonRegalo, gravedad: 3, corto: 'No es un regalo',
         voz: 'Eso que le ofrecen no es un regalo de verdad. Es el gancho para que instale su aplicacion y para que acabe comprando. ' +
              'Nadie regala nada por entrar en una pagina. Puede seguir mirando sin tocar eso: no se pierde nada.'
+      });
+    }
+
+    /* 0.sexies TE MANDAN A LA TIENDA DE APLICACIONES.
+     * Muchas paginas empujan a instalar su app porque dentro pueden
+     * hacer lo que quieran: mandar avisos a todas horas, ver mas datos
+     * del movil y, sobre todo, quitarse de encima al guardaespaldas.
+     * Dentro de su aplicacion nosotros ya no protegemos nada. */
+    var aTienda = null;
+    var enlaces = [].slice.call(document.querySelectorAll('a'));
+    for (var y = 0; y < enlaces.length; y++) {
+      var lk = enlaces[y];
+      if (!visible(lk)) continue;
+      var destino = (lk.getAttribute('href') || '').toLowerCase();
+      var txtLk = limpio(lk.textContent).toLowerCase();
+      if (/play\.google|apps\.apple|market:\/\//.test(destino) ||
+          /descargar la app|descarga la app|instalar la app|abrir en la app|cont[ií]nua en la app/.test(txtLk)) {
+        aTienda = lk; break;
+      }
+    }
+    if (!aTienda) aTienda = botonCon2(['descargar la app', 'instalar la aplicaci', 'abrir en la app', 'continuar en la app']);
+    if (aTienda) {
+      lista.push({
+        el: aTienda, gravedad: 3, corto: 'No hace falta la app',
+        voz: 'Le estan empujando a instalar su aplicacion. No le hace ninguna falta: todo lo que quiere hacer se puede hacer aqui mismo. ' +
+             'Y ojo, que dentro de su aplicacion yo ya no puedo avisarle de nada. Aqui estamos mejor.'
       });
     }
 
@@ -353,6 +385,8 @@
 
   /* ---------------- pintura ---------------- */
   var capa, marco, barra, corto, tranquilo, ultimo = null, quieto = 0;
+  // Avisos que la persona ya ha dado por vistos en esta pagina
+  var callados = {};
 
   function crear() {
     capa = document.createElement('div');
@@ -385,15 +419,18 @@
       'text-align:center;box-shadow:0 -4px 16px rgba(0,0,0,.3)');
     tranquilo.textContent = '\u{1F6E1} Vigilando por usted';
 
+    /* La barra era demasiado gruesa y tapaba media pantalla. Se reduce
+       la letra y el relleno: sigue viendose perfectamente, pero deja
+       leer la pagina que hay detras. */
     barra = document.createElement('div');
     barra.setAttribute('style',
       'position:fixed;left:0;right:0;bottom:0;background:#b3261e;color:#fff;' +
-      'padding:20px 18px calc(20px + env(safe-area-inset-bottom));z-index:2147483647;' +
+      'padding:12px 14px calc(12px + env(safe-area-inset-bottom));z-index:2147483647;' +
       'font-family:system-ui,-apple-system,sans-serif;' +
-      'box-shadow:0 -8px 30px rgba(0,0,0,.5);display:none;align-items:center;gap:14px');
+      'box-shadow:0 -6px 22px rgba(0,0,0,.45);display:none;align-items:center;gap:10px');
 
     corto = document.createElement('div');
-    corto.setAttribute('style', 'flex:1;font-size:28px;font-weight:800;line-height:1.2');
+    corto.setAttribute('style', 'flex:1;font-size:21px;font-weight:800;line-height:1.2');
 
     var rep = document.createElement('button');
     rep.textContent = '\u{1F50A}';
@@ -433,7 +470,25 @@
     tranquilo.appendChild(etiqueta);
     tranquilo.appendChild(casa2);
 
-    barra.appendChild(corto); barra.appendChild(rep); barra.appendChild(casa);
+    /* CERRAR EL AVISO.
+       Antes el aviso se quedaba puesto para siempre y repitiendose: si
+       la persona ya lo ha entendido y decide seguir, la app le estaba
+       dando la lata sin parar. Ahora se puede decir "ya lo he visto" y
+       ese aviso concreto no vuelve a salir en esta pagina. */
+    var visto = document.createElement('button');
+    visto.textContent = '✓';
+    visto.setAttribute('style',
+      'flex-shrink:0;width:52px;height:52px;border-radius:50%;border:3px solid #fff;' +
+      'background:#ffffff22;color:#fff;font-size:24px;font-weight:800');
+    visto.onclick = function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      if (ultimo) callados[ultimo] = true;
+      ultimo = null;
+      latido();
+    };
+
+    var botones2 = [corto, rep, visto, casa];
+    for (var z = 0; z < botones2.length; z++) barra.appendChild(botones2[z]);
     capa.appendChild(css); capa.appendChild(marco);
     capa.appendChild(tranquilo); capa.appendChild(barra);
     document.documentElement.appendChild(capa);
@@ -476,7 +531,7 @@
   }
 
   function latido() {
-    var t = trampas();
+    var t = trampas().filter(function (x) { return !callados[x.corto]; });
     if (!t.length) {
       // Todo tranquilo: se quita el recuadro y el aviso, pero se deja la
       // banda verde. Callarse del todo hacia imposible saber si estaba

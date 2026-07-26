@@ -136,14 +136,34 @@ function quitar(ev, i){
   }
 }
 
+/* Antes esto pedia la direccion exacta y salia "pagina no disponible"
+   en cuanto se escribia "el corte ingles" en vez de "elcorteingles.es".
+   Nadie se sabe las direcciones de memoria. Ahora vale escribir lo que
+   sea: si no parece una direccion, se guarda como busqueda y funciona
+   igual. */
 function anadir(){
   var nom = prompt('¿Cómo quiere llamarla?\n(por ejemplo: Mi banco, El periódico)');
   if(!nom) return;
-  var dir = prompt('¿Cuál es la página?\n(por ejemplo: elpais.com)');
+  var dir = prompt('¿Qué página es?\nPuede escribir el nombre a secas:\nel corte inglés, mi ayuntamiento...');
   if(!dir) return;
-  dir = dir.trim();
-  if(!/^https?:\/\//i.test(dir)) dir = 'https://' + dir;
-  favoritas.push({ ic:'⭐', nom:nom.trim(), des:'', url:dir, fija:false, color:'gris' });
+  favoritas.push({ ic:'⭐', nom:nom.trim(), des:'', url:aDireccion(dir), fija:false, color:'gris' });
+  guardar(favoritas); pintar();
+}
+
+/* Convierte lo que sea en algo que se pueda abrir sin fallar */
+function aDireccion(v){
+  v = String(v).trim();
+  if(/^[^\s]+\.[a-z]{2,}(\/|$)/i.test(v)){
+    return /^https?:\/\//i.test(v) ? v : 'https://' + v;
+  }
+  return 'https://duckduckgo.com/?kl=es-es&q=' + encodeURIComponent(v);
+}
+
+/* Guardar la pagina en la que uno esta: es la forma natural de hacer
+   favoritos, sin tener que escribir ninguna direccion. La llama la
+   barra de ayuda desde dentro de la web. */
+function guardarPagina(url, nombre){
+  favoritas.push({ ic:'⭐', nom:nombre, des:'', url:url, fija:false, color:'gris' });
   guardar(favoritas); pintar();
 }
 
@@ -153,11 +173,7 @@ function anadir(){
 function irADireccion(){
   var v = document.getElementById('dir').value.trim();
   if(!v) return;
-  if(/^[^\s]+\.[a-z]{2,}(\/|$)/i.test(v)){
-    location.href = (/^https?:\/\//i.test(v) ? v : 'https://' + v);
-  } else {
-    location.href = 'https://duckduckgo.com/?kl=es-es&q=' + encodeURIComponent(v);
-  }
+  location.href = aDireccion(v);
 }
 document.getElementById('dir').addEventListener('keydown', function(e){
   if(e.key === 'Enter') irADireccion();
