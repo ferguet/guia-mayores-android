@@ -460,7 +460,8 @@
     tranquilo.style.gap = '12px';
     var etiqueta = document.createElement('div');
     etiqueta.setAttribute('style', 'flex:1;text-align:left');
-    etiqueta.textContent = '\u{1F6E1} Vigilando por usted';
+    etiqueta.innerHTML = '\u{1F6E1} Vigilando por usted ' +
+      '<span id="__gEstadoIA" style="font-size:13px;color:#ffffffaa"></span>';
     var casa2 = casa.cloneNode(true);
     casa2.setAttribute('style',
       'flex-shrink:0;width:44px;height:44px;border-radius:50%;border:3px solid #fff;' +
@@ -497,6 +498,16 @@
   /* La barra de abajo tapaba el final de la pagina y no habia forma de
      leer lo que ponia ahi. Se le mete a la propia pagina un hueco al
      final igual de alto que la barra, asi nada queda escondido. */
+  /* Encoge la barra a una tira fina. El aviso ya se ha dicho y ya se ha
+     leido; a partir de ahi solo tiene que quedar el recordatorio, sin
+     comerse la pantalla. Se puede volver a oir con el altavoz. */
+  function encoger() {
+    if (!barra || barra.style.display === 'none') return;
+    barra.style.padding = '6px 12px calc(6px + env(safe-area-inset-bottom))';
+    corto.style.fontSize = '15px';
+    apartarContenido();
+  }
+
   function apartarContenido() {
     var alto = 0;
     if (barra && barra.style.display !== 'none') alto = barra.offsetHeight;
@@ -507,11 +518,19 @@
   }
 
   function rodear(el) {
+    /* NO se mueve la pagina.
+     *
+     * Antes esto hacia scrollIntoView cada vez que se recolocaba, y en
+     * paginas que cambian solas (YouTube) se quedaba subiendo y bajando
+     * sin parar: mareaba y no se podia ni leer. Aqui solo vigilamos, no
+     * hay ningun paso que dar, asi que si el elemento no se ve, no se
+     * rodea y punto. Mover la pantalla debajo de una persona mayor la
+     * desorienta mas que ayudarla. */
     var r = el.getBoundingClientRect();
     var altoBarra = (barra.style.display !== 'none') ? barra.offsetHeight : tranquilo.offsetHeight;
-    if (r.top < 60 || r.bottom > window.innerHeight - altoBarra - 30) {
-      el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      r = el.getBoundingClientRect();
+    if (r.bottom < 40 || r.top > window.innerHeight - altoBarra - 10) {
+      marco.style.display = 'none';
+      return;
     }
     marco.style.left = (r.left - 7) + 'px';
     marco.style.top = (r.top - 7) + 'px';
@@ -577,13 +596,18 @@
     // se dicen ("aqui no toque nada"). Antes esto habria reventado.
     if (p.el) rodear(p.el); else marco.style.display = 'none';
     if (ultimo !== p.corto) {
-      ultimo = p.corto; quieto = 0;
+      ultimo = p.corto;
       corto.textContent = p.corto;
       window.__ultimaVoz = p.voz;
       decir(p.voz, false);
-    } else {
-      quieto++;
-      if (quieto === 20) { decir(p.voz, true); quieto = 0; }
+      // Se dice UNA vez y la barra se encoge sola a los 9 segundos.
+      // Antes se repetia cada 20 segundos y ademas se quedaba gorda
+      // tapando media pantalla: acababa siendo un estorbo y la persona
+      // dejaba de hacerle caso justo el dia que importaba.
+      clearTimeout(window.__gEncoger);
+      barra.style.padding = '12px 14px calc(12px + env(safe-area-inset-bottom))';
+      corto.style.fontSize = '21px';
+      window.__gEncoger = setTimeout(encoger, 9000);
     }
   }
 
@@ -612,6 +636,23 @@
   var preguntando = false;
 
   function textoDe(e) { return limpio(e.textContent || e.value || ''); }
+
+  /* Estado de la IA, visible en la banda verde.
+   *
+   * Esto no es un adorno: sin verlo, "la IA no dice nada" puede ser que
+   * este funcionando y no vea peligro, que no llegue al servidor, o que
+   * el servidor la rechace. Tres cosas muy distintas que se arreglan de
+   * forma muy distinta. Se pone en pequeño y se quitara cuando esto
+   * este rodado. */
+  var ultimoEstadoIA = '';
+  function estadoIA(e) {
+    ultimoEstadoIA = e;
+    var el = document.getElementById('__gEstadoIA');
+    if (!el) return;
+    var mapa = { pensando: '· mirando…', ok: '· todo bien', aviso: '· ojo' };
+    el.textContent = mapa[e] || ('· ' + e);
+    el.style.color = e.indexOf('fallo') === 0 ? '#ffd0d0' : '#ffffffaa';
+  }
 
   /* Recoge la ESTRUCTURA de la pantalla. Lo importante de esta funcion
      es lo que NO recoge: en ningun sitio se lee el .value de un campo
@@ -685,20 +726,25 @@
     huellaPreguntada = h;
     preguntando = true;
 
+    estadoIA('pensando');
     fetch(SERVIDOR, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Movil': window.__idMovil || 'app' },
       body: JSON.stringify(r)
     })
-      .then(function (res) { return res.json(); })
+      .then(function (res) {
+        if (!res.ok) throw new Error('error ' + res.status);
+        return res.json();
+      })
       .then(function (a) {
         preguntando = false;
-        if (a && a.hay_aviso) { avisoIA = a; latido(); }
-        else avisoIA = null;
+        if (a && a.hay_aviso) { avisoIA = a; estadoIA('aviso'); latido(); }
+        else { avisoIA = null; estadoIA('ok'); }
       })
-      .catch(function () {
+      .catch(function (e) {
         // Sin internet o servidor caido: las reglas siguen solas.
         preguntando = false;
+        estadoIA('fallo:' + (e && e.message ? e.message : '?'));
       });
   }
 
