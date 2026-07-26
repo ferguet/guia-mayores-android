@@ -39,6 +39,20 @@
     return t.toLowerCase();
   }
 
+  /* Busca un boton o enlace visible cuyo texto contenga alguna palabra */
+  function botonCon2(palabras) {
+    var t = [].slice.call(document.querySelectorAll('button,a,input[type=submit],input[type=button]'));
+    for (var i = 0; i < t.length; i++) {
+      if (!visible(t[i])) continue;
+      var s = limpio(t[i].textContent || t[i].value).toLowerCase();
+      if (s.length > 60) continue;                 // parrafos, no botones
+      for (var j = 0; j < palabras.length; j++) {
+        if (s.indexOf(palabras[j]) !== -1) return t[i];
+      }
+    }
+    return null;
+  }
+
   /* ---------------------------------------------------------------
      LAS TRAMPAS
      Ordenadas por lo que cuesta caer en ellas. Una casilla marcada que
@@ -100,6 +114,66 @@
                'Si acepta esto, apunte en el calendario cuando termina.'
         });
         break;
+      }
+    }
+
+    /* 3.bis PEDIR OFERTA / PRESUPUESTO / INFORMACION / DONAR.
+     *
+     * Visto en la web de un fabricante de coches: das a "pedir oferta" y
+     * la app no decia nada, porque tecnicamente no hay ningun cobro. Pero
+     * para la persona si pasa algo importante: sus datos se van a una
+     * empresa y a partir de ahi la van a llamar por telefono a vender.
+     * Eso, con gente mayor, es la puerta de entrada de muchos timos.
+     * No hay que impedirlo -a lo mejor si quiere la oferta-, hay que
+     * decirle claramente lo que va a pasar.
+     */
+    var camposPersonales = 0, pideTelefono = false;
+    var entradas = [].slice.call(document.querySelectorAll('input,textarea'));
+    for (var n = 0; n < entradas.length; n++) {
+      var ee = entradas[n];
+      if (!visible(ee) || ee.type === 'hidden') continue;
+      var ctxE = (ee.name + ' ' + ee.id + ' ' + ee.placeholder + ' ' + entorno(ee, 2)).toLowerCase();
+      if (/nombre|apellido|correo|email|e-mail|tel[eé]fono|movil|m[oó]vil|c[oó]digo postal|direcci[oó]n/.test(ctxE)) {
+        camposPersonales++;
+        if (/tel[eé]fono|movil|m[oó]vil/.test(ctxE)) pideTelefono = true;
+      }
+    }
+    var botonComercial = botonCon2(['pedir oferta', 'solicitar oferta', 'solicita tu oferta',
+      'pedir presupuesto', 'solicitar informaci', 'quiero informaci', 'me interesa',
+      'contactar', 'te llamamos', 'donar', 'donaci']);
+    if (camposPersonales >= 2 && botonComercial) {
+      var esDonar = /donar|donaci/i.test(limpio(botonComercial.textContent || ''));
+      lista.push({
+        el: botonComercial, gravedad: 2,
+        corto: esDonar ? 'Le van a cobrar' : 'Le van a llamar',
+        voz: esDonar
+          ? 'Ojo, esto es una donacion: va a dar dinero suyo. Antes de seguir, mire bien si es una sola vez o si se lo van a cobrar todos los meses, ' +
+            'porque muchas veces viene puesto lo segundo sin que se vea. Y asegurese de que conoce a quien esta donando.'
+          : 'Atencion, que aqui no esta comprando nada, pero si esta dando sus datos. ' +
+            (pideTelefono ? 'Le estan pidiendo el telefono, asi que le van a llamar para venderle. ' : 'Le van a escribir para venderle. ') +
+            'Si solo queria mirar precios, no hace falta que rellene esto. Y si lo rellena, luego no se extrañe de las llamadas.'
+      });
+    }
+
+    /* 3.ter PANTALLAS QUE PIDEN PERMISO O CAMBIAR UN AJUSTE.
+     *
+     * Visto en YouTube: "tu historial esta desactivado, actualizar
+     * ajuste". La persona no tiene ni idea de que le estan pidiendo ni
+     * de que pasa si dice que si, y el boton es grande y azul, asi que
+     * lo pulsa. Lo importante no es impedirlo: es que sepa que le estan
+     * pidiendo permiso para algo y que puede decir que no.
+     */
+    var botonAjuste = botonCon2(['actualizar ajuste', 'activar historial', 'activar', 'permitir',
+      'aceptar y activar', 'si, activar']);
+    if (botonAjuste) {
+      var e2 = entorno(botonAjuste, 3);
+      if (/historial|actividad|personaliza|recomendaci|ubicaci[oó]n|notificaci/.test(e2)) {
+        lista.push({
+          el: botonAjuste, gravedad: 1, corto: 'Le piden permiso',
+          voz: 'Esta pantalla no le esta pidiendo dinero: le esta pidiendo permiso para guardar lo que usted hace, ' +
+               'para luego enseñarle cosas a medida. No esta obligado a decir que si. ' +
+               'Si no lo activa, la pagina le funciona exactamente igual, solo que le conocen menos. Usted decide.'
+        });
       }
     }
 

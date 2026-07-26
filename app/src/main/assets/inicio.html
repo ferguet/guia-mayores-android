@@ -53,20 +53,37 @@
 </button>
 
 <div class="otra">
-  <p>Para probar otra página (esto se quitará en la versión final):</p>
+  <p>O escriba qué busca, con sus palabras:</p>
   <div class="fila">
-    <input id="dir" type="text" inputmode="url" placeholder="www.loquesea.es" autocomplete="off">
-    <button onclick="irADireccion()">Ir</button>
+    <input id="dir" type="text" placeholder="la seat, el ayuntamiento..." autocomplete="off">
+    <button onclick="irADireccion()">Buscar</button>
   </div>
 </div>
 
 <script>
 function abrir(u){ location.href = u; }
+
+/* Antes esto era una casilla de direcciones y fallaba constantemente:
+   habia que escribir "www.loquesea.es" sin equivocarse en un solo
+   caracter, y cualquier fallo dejaba la pantalla en blanco. Nadie
+   escribe direcciones asi, y menos con un teclado pequeño.
+
+   Ahora funciona como buscador: si lo escrito parece una direccion de
+   verdad se va derecho ahi; si no, se busca. Asi vale poner "la seat"
+   o "ayuntamiento de mi pueblo" y funciona igual.
+
+   Se busca en DuckDuckGo a proposito: no monta muro de cookies ni pide
+   aceptar nada, que es justo de lo que estamos protegiendo. */
 function irADireccion(){
   var v = document.getElementById('dir').value.trim();
   if(!v) return;
-  if(!/^https?:\/\//i.test(v)) v = 'https://' + v;
-  location.href = v;
+  var esDireccion = /^[^\s]+\.[a-z]{2,}(\/|$)/i.test(v);
+  if(esDireccion){
+    if(!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    location.href = v;
+  } else {
+    location.href = 'https://duckduckgo.com/?kl=es-es&q=' + encodeURIComponent(v);
+  }
 }
 document.getElementById('dir').addEventListener('keydown', function(e){
   if(e.key === 'Enter') irADireccion();
