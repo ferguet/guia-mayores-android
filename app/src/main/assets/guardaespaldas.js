@@ -144,10 +144,15 @@
     // aviso no saltaba nunca. Ahora basta con que se hable de elegir
     // pago, o que aparezcan dos formas de pago juntas.
     var textoPago = limpio(document.body.textContent).slice(0, 9000);
-    var hablaDePagar = /forma de pago|m[eé]todo de pago|formas de pago|elige c[oó]mo pagar|c[oó]mo quieres pagar|datos de pago/i.test(textoPago);
-    var dosFormas = (/bizum/i.test(textoPago) ? 1 : 0) + (/tarjeta/i.test(textoPago) ? 1 : 0) +
-                    (/paypal/i.test(textoPago) ? 1 : 0) + (/contrarreembolso/i.test(textoPago) ? 1 : 0);
-    if (hablaDePagar || dosFormas >= 2) {
+    // Me pase de listo al aflojar esto: con que en la pagina saliera
+    // "tarjeta" y "paypal" en cualquier sitio ya avisaba, y en una
+    // tienda esas palabras salen en TODAS las pantallas. Resultado: el
+    // aviso permanente que has visto. Ahora hace falta que la pantalla
+    // este pidiendo elegir pago de verdad, no que la palabra aparezca.
+    var hablaDePagar = /forma de pago|m[eé]todo de pago|formas de pago|elige c[oó]mo pagar|c[oó]mo quieres pagar|selecciona.{0,20}pago/i.test(textoPago);
+    var opcionDePago = !!botonCon2(['pagar con tarjeta', 'pagar con bizum', 'pagar con paypal',
+                                    'contrarreembolso', 'a plazos', 'financiar']);
+    if (hablaDePagar && opcionDePago) {
       var aPlazos = botonCon2(['a plazos', 'financiar', 'paga en 3', 'paga en 4', 'aplazar', 'financiaci']);
       lista.push({
         el: aPlazos, gravedad: 3, corto: 'Cómo va a pagar',
@@ -202,10 +207,47 @@
     }
     if (!aTienda) aTienda = botonCon2(['descargar la app', 'instalar la aplicaci', 'abrir en la app', 'continuar en la app']);
     if (aTienda) {
+      // Solo si te lo estan METIENDO POR LOS OJOS: un cartel flotante o
+      // pegado, no un enlace del pie de pagina. Un aviso que salta en
+      // todas las webs no es un aviso, es ruido -y cansa hasta que la
+      // persona deja de hacer caso justo el dia que importa-.
+      var rT = aTienda.getBoundingClientRect();
+      var n = aTienda, flotante = false;
+      for (var ff = 0; ff < 5 && n; ff++) {
+        var po = getComputedStyle(n).position;
+        if (po === 'fixed' || po === 'sticky') { flotante = true; break; }
+        n = n.parentElement;
+      }
+      var esCartel = flotante || rT.width > window.innerWidth * 0.6;
+      var seVe = rT.top < window.innerHeight && rT.bottom > 0 && rT.height > 26;
+      if (!(esCartel && seVe)) aTienda = null;
+    }
+    if (aTienda) {
       lista.push({
         el: aTienda, gravedad: 3, corto: 'No hace falta la app',
         voz: 'Le estan empujando a instalar su aplicacion. No le hace ninguna falta: todo lo que quiere hacer se puede hacer aqui mismo. ' +
              'Y ojo, que dentro de su aplicacion yo ya no puedo avisarle de nada. Aqui estamos mejor.'
+      });
+    }
+
+    /* 0.septies CONTRATAR UNA TARIFA O UN SERVICIO.
+     * Movil, internet, luz, gas, television. Aqui no hay boton de
+     * "comprar" en ninguna parte, asi que todo lo de arriba se lo perdia,
+     * y sin embargo es de lo mas caro que firma una persona mayor: una
+     * cuota de por vida, permanencia de dos años y un precio que sube
+     * calladamente a los seis meses. */
+    var hablaDeTarifa = /permanencia|cuota mensual|al mes durante|primeros \d+ meses|tarifa|contrataci[oó]n|alta de l[ií]nea|fibra|portabilidad/i.test(textoPago);
+    var botonContratar = botonCon2(['contratar', 'lo quiero', 'quiero esta tarifa',
+      'contratar ahora', 'darme de alta', 'solicitar alta']);
+    if (hablaDeTarifa && botonContratar) {
+      var conPermanencia = /permanencia|compromiso de \d+ meses/i.test(textoPago);
+      lista.push({
+        el: null, gravedad: 4, corto: 'Es un contrato',
+        voz: 'Pare aqui, que esto es importante. No esta comprando una cosa: esta firmando un contrato ' +
+             'que le van a cobrar todos los meses, y de estos es dificil salirse. ' +
+             (conPermanencia ? 'Ademas hay permanencia: si se arrepiente antes de tiempo, le cobran una penalizacion. ' : '') +
+             'Y mire la letra pequeña del precio, porque en estas cosas suele subir a los seis meses sin avisar. ' +
+             'Si no lo tiene clarisimo, mejor que lo consulte con alguien de confianza antes de firmar.'
       });
     }
 
@@ -331,15 +373,15 @@
       // "Aceptar todo" (sin la ese) lo usan Temu, YouTube y muchas mas,
       // y antes se escapaba entero: no se detectaba el aviso y la app
       // se quedaba callada justo donde mas falta hacia.
-      if (/aceptar todas|aceptar todo|acepto|aceptar y continuar|permitir todas|permitir todo|de acuerdo/.test(s)) hayCookies = true;
-      if (/suscr[ií]b|suscripci[oó]n|pagar|abonar|hazte socio|premium|sin publicidad|desde \d/.test(s)) hayPago = true;
-      if (/rechazar|solo (las )?necesarias|solo esenciales|denegar|continuar sin aceptar|no aceptar/.test(s)) {
+      if (/aceptar todas|aceptar todo|acepto|aceptar y continuar|permitir todas|permitir todo|de acuerdo|accept all|accept cookies|allow all|i agree|got it|ok, got it/.test(s)) hayCookies = true;
+      if (/suscr[ií]b|suscripci[oó]n|pagar|abonar|hazte socio|premium|sin publicidad|desde \d|subscribe|subscription|go ad-free/.test(s)) hayPago = true;
+      if (/rechazar|solo (las )?necesarias|solo esenciales|denegar|continuar sin aceptar|no aceptar|reject all|reject|decline|only necessary|necessary only|essential only|manage options/.test(s)) {
         // Y aunque ponga "rechazar": si al lado huele a dinero, no vale
         if (!/suscr|pagar|€|euro|abonar|premium/i.test(entorno(b, 2))) rechazar = b;
       }
     }
 
-    var contextoCookies = hayCookies || /cookie|consentimiento/i.test(limpio(document.body.textContent).slice(0, 3000));
+    var contextoCookies = hayCookies || /cookie|consentimiento|privacy|consent/i.test(limpio(document.body.textContent).slice(0, 3000));
 
     if (contextoCookies && hayPago) {
       // Muro de "consiente o paga". No se señala NADA: las dos salidas
@@ -384,7 +426,7 @@
   }
 
   /* ---------------- pintura ---------------- */
-  var capa, marco, barra, corto, tranquilo, ultimo = null, quieto = 0;
+  var capa, marco, marcoPantalla, barra, corto, tranquilo, ultimo = null, quieto = 0;
   // Avisos que la persona ya ha dado por vistos en esta pagina
   var callados = {};
 
@@ -413,30 +455,50 @@
     // tranquila lo resuelve sin molestar.
     tranquilo = document.createElement('div');
     tranquilo.setAttribute('style',
-      'position:fixed;left:0;right:0;bottom:0;background:#0b7a3b;color:#fff;' +
-      'padding:11px 16px calc(11px + env(safe-area-inset-bottom));z-index:2147483645;' +
-      'font-family:system-ui,-apple-system,sans-serif;font-size:16px;' +
-      'text-align:center;box-shadow:0 -4px 16px rgba(0,0,0,.3)');
+      'position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));' +
+      'background:#0b7a3b;color:#fff;border-radius:22px;' +
+      'padding:6px 8px 6px 14px;z-index:2147483645;' +
+      'font-family:system-ui,-apple-system,sans-serif;font-size:14px;' +
+      'box-shadow:0 4px 14px rgba(0,0,0,.35)');
     tranquilo.textContent = '\u{1F6E1} Vigilando por usted';
 
     /* La barra era demasiado gruesa y tapaba media pantalla. Se reduce
        la letra y el relleno: sigue viendose perfectamente, pero deja
        leer la pagina que hay detras. */
+    /* UN MARCO, NO UNA BARRA.
+     *
+     * Van tres veces que la barra de abajo tapa la pantalla, y ya van
+     * dos intentos mios de hacerla mas fina que no han bastado. El
+     * problema no era el grosor: era el sitio. Cualquier cosa pegada
+     * abajo se come justo la zona donde estan los botones de comprar.
+     *
+     * Solucion: un marco rojo fino alrededor de TODA la pantalla. Se ve
+     * igual de bien -mas, porque ocupa los cuatro lados- y no tapa ni un
+     * pixel de contenido. Y una pastilla pequeña, flotando, con las tres
+     * palabras y los botones.
+     */
+    marcoPantalla = document.createElement('div');
+    marcoPantalla.setAttribute('style',
+      'position:fixed;inset:0;border:6px solid #b3261e;box-sizing:border-box;' +
+      'pointer-events:none;z-index:2147483644;display:none;' +
+      'box-shadow:inset 0 0 22px rgba(179,38,30,.35)');
+
     barra = document.createElement('div');
     barra.setAttribute('style',
-      'position:fixed;left:0;right:0;bottom:0;background:#b3261e;color:#fff;' +
-      'padding:12px 14px calc(12px + env(safe-area-inset-bottom));z-index:2147483647;' +
+      'position:fixed;left:8px;right:8px;bottom:calc(8px + env(safe-area-inset-bottom));' +
+      'background:#b3261e;color:#fff;border-radius:24px;' +
+      'padding:6px 8px 6px 16px;z-index:2147483647;' +
       'font-family:system-ui,-apple-system,sans-serif;' +
-      'box-shadow:0 -6px 22px rgba(0,0,0,.45);display:none;align-items:center;gap:10px');
+      'box-shadow:0 4px 18px rgba(0,0,0,.45);display:none;align-items:center;gap:6px');
 
     corto = document.createElement('div');
-    corto.setAttribute('style', 'flex:1;font-size:21px;font-weight:800;line-height:1.2');
+    corto.setAttribute('style', 'flex:1;font-size:15px;font-weight:700;line-height:1.15;min-width:0');
 
     var rep = document.createElement('button');
     rep.textContent = '\u{1F50A}';
     rep.setAttribute('style',
-      'flex-shrink:0;width:62px;height:62px;border-radius:50%;border:4px solid #fff;' +
-      'background:transparent;color:#fff;font-size:26px');
+      'flex-shrink:0;width:40px;height:40px;border-radius:50%;border:2px solid #fff;' +
+      'background:transparent;color:#fff;font-size:19px;padding:0');
     rep.onclick = function (ev) {
       ev.preventDefault(); ev.stopPropagation();
       if (window.__ultimaVoz) decir(window.__ultimaVoz, true);
@@ -447,8 +509,8 @@
     var casa = document.createElement('button');
     casa.textContent = '\u{1F3E0}';
     casa.setAttribute('style',
-      'flex-shrink:0;width:62px;height:62px;border-radius:50%;border:4px solid #fff;' +
-      'background:transparent;color:#fff;font-size:26px');
+      'flex-shrink:0;width:40px;height:40px;border-radius:50%;border:2px solid #fff;' +
+      'background:transparent;color:#fff;font-size:19px;padding:0');
     casa.onclick = function (ev) {
       ev.preventDefault(); ev.stopPropagation();
       try { if (window.Android && window.Android.inicio) window.Android.inicio(); } catch (e) {}
@@ -479,8 +541,8 @@
     var visto = document.createElement('button');
     visto.textContent = '✓';
     visto.setAttribute('style',
-      'flex-shrink:0;width:52px;height:52px;border-radius:50%;border:3px solid #fff;' +
-      'background:#ffffff22;color:#fff;font-size:24px;font-weight:800');
+      'flex-shrink:0;width:40px;height:40px;border-radius:50%;border:2px solid #fff;' +
+      'background:#ffffff22;color:#fff;font-size:19px;font-weight:800;padding:0');
     visto.onclick = function (ev) {
       ev.preventDefault(); ev.stopPropagation();
       if (ultimo) callados[ultimo] = true;
@@ -490,7 +552,7 @@
 
     var botones2 = [corto, rep, visto, casa];
     for (var z = 0; z < botones2.length; z++) barra.appendChild(botones2[z]);
-    capa.appendChild(css); capa.appendChild(marco);
+    capa.appendChild(css); capa.appendChild(marco); capa.appendChild(marcoPantalla);
     capa.appendChild(tranquilo); capa.appendChild(barra);
     document.documentElement.appendChild(capa);
   }
@@ -512,9 +574,10 @@
     var alto = 0;
     if (barra && barra.style.display !== 'none') alto = barra.offsetHeight;
     else if (tranquilo && tranquilo.style.display !== 'none') alto = tranquilo.offsetHeight;
-    if (alto > 0 && document.body) {
-      document.body.style.paddingBottom = (alto + 16) + 'px';
-    }
+    // Ya no se aparta nada: el aviso es un marco por los bordes y una
+    // pastilla flotante, asi que no tapa contenido. Se deja un hueco
+    // minimo para que la pastilla no se coma el ultimo boton.
+    if (document.body) document.body.style.paddingBottom = '64px';
   }
 
   function rodear(el) {
@@ -584,6 +647,7 @@
       // banda verde. Callarse del todo hacia imposible saber si estaba
       // vigilando o si la app se habia caido.
       marco.style.display = 'none';
+      marcoPantalla.style.display = 'none';
       barra.style.display = 'none';
       tranquilo.style.display = 'flex';
       ultimo = null;
@@ -592,6 +656,7 @@
     var p = t[0];
     tranquilo.style.display = 'none';
     barra.style.display = 'flex';
+    marcoPantalla.style.display = 'block';
     // Puede no haber nada que señalar, y esta bien: hay avisos que solo
     // se dicen ("aqui no toque nada"). Antes esto habria reventado.
     if (p.el) rodear(p.el); else marco.style.display = 'none';
@@ -600,14 +665,6 @@
       corto.textContent = p.corto;
       window.__ultimaVoz = p.voz;
       decir(p.voz, false);
-      // Se dice UNA vez y la barra se encoge sola a los 9 segundos.
-      // Antes se repetia cada 20 segundos y ademas se quedaba gorda
-      // tapando media pantalla: acababa siendo un estorbo y la persona
-      // dejaba de hacerle caso justo el dia que importaba.
-      clearTimeout(window.__gEncoger);
-      barra.style.padding = '12px 14px calc(12px + env(safe-area-inset-bottom))';
-      corto.style.fontSize = '21px';
-      window.__gEncoger = setTimeout(encoger, 9000);
     }
   }
 
@@ -749,10 +806,12 @@
   }
 
   crear();
-  setTimeout(latido, 900);
+  latido();                          // al instante, sin esperar nada
+  setTimeout(latido, 250);           // y otra vez en cuanto pinte la pagina
+  setTimeout(latido, 700);
   setInterval(latido, 900);          // mas seguido: los avisos de cookies
                                      // se mueven y aparecen tarde
-  setTimeout(preguntarIA, 1800);     // la IA llega despues, sin frenar nada
+  setTimeout(preguntarIA, 900);     // la IA llega despues, sin frenar nada
   setInterval(preguntarIA, 4000);
 
   function recolocar() {

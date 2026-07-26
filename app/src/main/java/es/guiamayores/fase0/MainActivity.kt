@@ -7,6 +7,7 @@ import android.speech.tts.TextToSpeech
 import android.view.ViewGroup
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
@@ -42,12 +43,20 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var ultimaUbicacion = ""
 
     /**
-     * Portada propia, dentro de la app: desde ahi se elige que hacer.
-     * Antes se abria directamente la sede del tramite, pero la app ya no
-     * sirve para una sola cosa: puede guiar un tramite o vigilar una
-     * tienda, y eso hay que poder elegirlo.
+     * LA PORTADA TAMBIEN SE BAJA DEL SERVIDOR.
+     *
+     * Las reglas ya venian del servidor, pero las PANTALLAS seguian
+     * dentro del apk. Resultado: cada vez que se añadia algo -como el
+     * boton del microfono- habia que recompilar, publicar, descargar e
+     * instalar, y mientras tanto la persona no veia el cambio y parecia
+     * que no funcionaba nada.
+     *
+     * Con esto, añadir o cambiar una pantalla es tan barato como cambiar
+     * una regla. Si el servidor no responde, se usa la copia de dentro
+     * del apk: nunca se queda sin app.
      */
-    private val urlInicio = "file:///android_asset/inicio.html"
+    private val urlInicio = "https://ai-council-ekax.onrender.com/guardian/inicio.html"
+    private val urlInicioLocal = "file:///android_asset/inicio.html"
 
     @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -79,6 +88,14 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             settings.databaseEnabled = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
+            // Sin esto, el movil se guarda una copia de inicio.html, quiero.html
+            // y guardaespaldas.js la primera vez y ya no vuelve a pedirlas: por
+            // mucho que se actualice el servidor, la persona sigue viendo la
+            // version vieja para siempre. Con LOAD_NO_CACHE se pide siempre la
+            // ultima version, tanto de nuestras paginas como de las sedes
+            // reales (tambien nos interesa que el formulario de la DNI no se
+            // quede obsoleto).
+            settings.cacheMode = WebSettings.LOAD_NO_CACHE
             // Algunas sedes de la administracion sirven una version
             // distinta (o directamente rota) si detectan que quien entra
             // no es un navegador normal. Nos presentamos como Chrome.
@@ -98,6 +115,21 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 ) {
                     val propia = origin?.startsWith("file://") == true
                     callback?.invoke(origin, propia, false)
+                }
+
+                /**
+                 * El microfono, para que pueda DECIR lo que necesita.
+                 *
+                 * Solo se concede a nuestras propias pantallas. A una web
+                 * cualquiera de internet no se le da el microfono jamas:
+                 * seria justo el tipo de permiso que usan las paginas
+                 * turbias, y esta app existe para lo contrario.
+                 */
+                override fun onPermissionRequest(peticion: android.webkit.PermissionRequest?) {
+                    val origen = peticion?.origin?.toString() ?: return
+                    val nuestra = origen.startsWith("file://") ||
+                                  origen.startsWith("https://ai-council-ekax.onrender.com")
+                    if (nuestra) peticion.grant(peticion.resources) else peticion.deny()
                 }
             }
 
@@ -156,17 +188,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         setContentView(raiz)
         web.loadUrl(urlInicio)
+        // Si el servidor no responde en 6 segundos, se tira de la copia
+        // de dentro del apk. Mas vale una portada antigua que una
+        // pantalla en blanco.
+        web.postDelayed({
+            if (!portadaVisible && web.url?.startsWith("http") == true) {
+                web.evaluateJavascript("!!document.getElementById('lista')") { hay ->
+                    if (hay != "true") web.loadUrl(urlInicioLocal)
+                }
+            }
+        }, 6000)
 
         // La ubicacion se pide una sola vez, al arrancar, para que cuando
         // de verdad haga falta (pantalla de ayuda) ya este concedida y no
         // haya que pelearse con un permiso en mitad de un susto.
-        if (androidx.core.content.ContextCompat.checkSelfPermission(
-                this, android.Manifest.permission.ACCESS_FINE_LOCATION
-            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
-        ) {
-            androidx.core.app.ActivityCompat.requestPermissions(
-                this, arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION), 1
-            )
+        val pendientes = arrayOf(
+            android.Manifest.permission.ACCESS_FINE_LOCATION,   // pantalla de ayuda
+            android.Manifest.permission.RECORD_AUDIO,           // decir que necesita
+        ).filter {
+            androidx.core.content.ContextCompat.checkSelfPermission(this, it) !=
+                android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+        if (pendientes.isNotEmpty()) {
+            androidx.core.app.ActivityCompat.requestPermissions(this, pendientes.toTypedArray(), 1)
         }
     }
 
@@ -185,7 +229,10 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun inyectarAyuda(url: String?) {
         val u = url ?: return
-        if (u.startsWith("file://")) {                      // nuestra propia portada
+        // Nuestras propias pantallas: ni se vigilan ni se guian.
+        // Ahora pueden venir de dentro del apk (file://) o del servidor,
+        // asi que se reconocen por la ruta /guardian/.
+        if (u.startsWith("file://") || u.contains("/guardian/")) {
             portadaVisible = true
             saludar()
             return

@@ -9,6 +9,14 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
+    <!-- Microfono: SOLO para que la persona pueda decir con su voz que
+         necesita ("quiero quitar el coche de en medio"). No se graba
+         nada, no se guarda nada y no se escucha en segundo plano: se
+         abre cuando ella pulsa el boton verde y se cierra al terminar.
+         Es imprescindible porque mucha gente mayor no ve bien el teclado
+         y escribir les cuesta mas que hablar. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <!-- Para abrir el marcador de telefono con el numero puesto. NO se
          pide CALL_PHONE a proposito: ese permiso permitiria llamar sin
          que la persona lo sepa, y aqui la llamada la da siempre ella. -->
@@ -36,3 +44,4 @@
         </activity>
     </application>
 </manifest>
+
