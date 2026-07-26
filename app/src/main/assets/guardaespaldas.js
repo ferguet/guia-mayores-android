@@ -128,7 +128,7 @@
   }
 
   /* ---------------- pintura ---------------- */
-  var capa, marco, barra, corto, ultimo = null, quieto = 0;
+  var capa, marco, barra, corto, tranquilo, ultimo = null, quieto = 0;
 
   function crear() {
     capa = document.createElement('div');
@@ -145,6 +145,21 @@
       'box-shadow:0 0 0 4px #fff,0 0 26px rgba(230,57,0,.85);' +
       'z-index:2147483646;pointer-events:none;animation:__gPar 1.2s ease-in-out infinite;' +
       'transition:all .3s ease;display:none');
+
+    // Señal discreta de que hay alguien vigilando.
+    //
+    // Antes, cuando no habia ningun peligro, no se veia absolutamente
+    // nada. Eso esta mal por dos motivos: la persona no sabe si la estan
+    // cuidando o si la app se ha colgado, y nosotros tampoco podemos
+    // distinguir "todo bien" de "esto no funciona". Una banda finita y
+    // tranquila lo resuelve sin molestar.
+    tranquilo = document.createElement('div');
+    tranquilo.setAttribute('style',
+      'position:fixed;left:0;right:0;bottom:0;background:#0b7a3b;color:#fff;' +
+      'padding:11px 16px calc(11px + env(safe-area-inset-bottom));z-index:2147483645;' +
+      'font-family:system-ui,-apple-system,sans-serif;font-size:16px;' +
+      'text-align:center;box-shadow:0 -4px 16px rgba(0,0,0,.3)');
+    tranquilo.textContent = '\u{1F6E1} Vigilando por usted';
 
     barra = document.createElement('div');
     barra.setAttribute('style',
@@ -167,7 +182,8 @@
     };
 
     barra.appendChild(corto); barra.appendChild(rep);
-    capa.appendChild(css); capa.appendChild(marco); capa.appendChild(barra);
+    capa.appendChild(css); capa.appendChild(marco);
+    capa.appendChild(tranquilo); capa.appendChild(barra);
     document.documentElement.appendChild(capa);
   }
 
@@ -197,14 +213,17 @@
   function latido() {
     var t = trampas();
     if (!t.length) {
-      // Todo tranquilo: el guardaespaldas se calla y desaparece.
-      // No hay que dar la lata cuando no pasa nada.
+      // Todo tranquilo: se quita el recuadro y el aviso, pero se deja la
+      // banda verde. Callarse del todo hacia imposible saber si estaba
+      // vigilando o si la app se habia caido.
       marco.style.display = 'none';
       barra.style.display = 'none';
+      tranquilo.style.display = 'block';
       ultimo = null;
       return;
     }
     var p = t[0];
+    tranquilo.style.display = 'none';
     barra.style.display = 'flex';
     rodear(p.el);
     if (ultimo !== p.corto) {
