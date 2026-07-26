@@ -88,6 +88,17 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             addJavascriptInterface(Puente(), "Android")
 
             webViewClient = object : WebViewClient() {
+                /**
+                 * Al empezar a cambiar de pagina hay que CALLARSE en el acto.
+                 * Si no, la voz sigue explicando la pantalla anterior mientras
+                 * la persona ya esta en otra: la confunde mas que ayudarla.
+                 */
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    voz?.stop()
+                    ultimaFrase = ""
+                }
+
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
                     // Cada vez que cambia de pantalla hay que volver a meter
@@ -150,6 +161,23 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         @JavascriptInterface
         fun decir(frase: String, forzar: Boolean) {
             runOnUiThread { hablar(frase, forzar) }
+        }
+
+        /**
+         * Volver a la portada.
+         *
+         * Faltaba, y era un agujero gordo: al entrar en una web te
+         * quedabas atrapado dentro. La unica salida era el boton de atras
+         * de Android, que muchas personas mayores ni usan ni saben que
+         * existe. Ahora hay una casa bien visible en la barra de ayuda.
+         */
+        @JavascriptInterface
+        fun inicio() {
+            runOnUiThread {
+                voz?.stop()
+                yaSaludado = false        // que vuelva a saludar al llegar
+                web.loadUrl(urlInicio)
+            }
         }
     }
 

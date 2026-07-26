@@ -224,7 +224,19 @@
       }, 450);
     };
 
-    barra.appendChild(corto); barra.appendChild(rep);
+    // Casa: para poder dejarlo y volver al principio en cualquier
+    // momento. Sin esto uno se queda encerrado dentro de la web.
+    var casa = document.createElement('button');
+    casa.textContent = '\u{1F3E0}';
+    casa.setAttribute('style',
+      'flex-shrink:0;width:64px;height:64px;border-radius:50%;border:4px solid #fff;' +
+      'background:transparent;color:#fff;font-size:27px');
+    casa.onclick = function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      try { if (window.Android && window.Android.inicio) window.Android.inicio(); } catch (e) {}
+    };
+
+    barra.appendChild(corto); barra.appendChild(rep); barra.appendChild(casa);
     capa.appendChild(css); capa.appendChild(circulo);
     capa.appendChild(mano); capa.appendChild(barra);
     document.documentElement.appendChild(capa);

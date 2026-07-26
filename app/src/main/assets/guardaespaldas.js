@@ -103,24 +103,74 @@
       }
     }
 
-    /* 4. Aviso de cookies: se busca el boton de RECHAZAR, que siempre
-          esta mas escondido y en gris que el de aceptar. */
+    /* 4. Aviso de cookies.
+     *
+     * OJO, AQUI SE METIO LA PATA UNA VEZ Y NO PUEDE VOLVER A PASAR.
+     *
+     * La primera version daba por hecho que el boton de "rechazar" era
+     * siempre el seguro, y señalaba ese. Pero muchos periodicos (El Pais
+     * entre ellos) montan un muro de "o me dejas seguirte, o te
+     * suscribes": ahi rechazar te lleva DERECHO A PAGAR. O sea que la
+     * app, que existe para que no les cuelen cobros, estaba empujando a
+     * una persona mayor a suscribirse.
+     *
+     * De ahi sale la regla de oro de todo el guardaespaldas:
+     * NUNCA se señala nada que pueda costar dinero. Ante la duda,
+     * no se señala nada y se explica la situacion. Callarse es
+     * gratis; equivocarse aqui le cuesta el dinero a otro.
+     */
     var botones = [].slice.call(document.querySelectorAll('button,a,input[type=button]'));
-    var rechazar = null, hayCookies = false;
+    var rechazar = null, hayCookies = false, hayPago = false;
     for (var m = 0; m < botones.length; m++) {
       var b = botones[m];
       if (!visible(b)) continue;
       var s = limpio(b.textContent || b.value).toLowerCase();
       if (/aceptar todas|acepto|aceptar y continuar|permitir todas/.test(s)) hayCookies = true;
-      if (/rechazar|solo (las )?necesarias|solo esenciales|denegar|continuar sin aceptar|no aceptar/.test(s)) rechazar = b;
+      if (/suscr[ií]b|suscripci[oó]n|pagar|abonar|hazte socio|premium|sin publicidad|desde \d/.test(s)) hayPago = true;
+      if (/rechazar|solo (las )?necesarias|solo esenciales|denegar|continuar sin aceptar|no aceptar/.test(s)) {
+        // Y aunque ponga "rechazar": si al lado huele a dinero, no vale
+        if (!/suscr|pagar|€|euro|abonar|premium/i.test(entorno(b, 2))) rechazar = b;
+      }
     }
-    if (rechazar && (hayCookies || /cookie/i.test(limpio(document.body.textContent).slice(0, 3000)))) {
+
+    var contextoCookies = hayCookies || /cookie|consentimiento/i.test(limpio(document.body.textContent).slice(0, 3000));
+
+    if (contextoCookies && hayPago) {
+      // Muro de "consiente o paga". No se señala NADA: las dos salidas
+      // son malas para la persona, y elegir por ella seria peor.
+      lista.push({
+        el: null, gravedad: 2, corto: 'Aquí no toque nada',
+        voz: 'Cuidado con esta pagina. Le esta poniendo entre la espada y la pared: o deja que le sigan por internet, ' +
+             'o le cobran una suscripcion todos los meses. No hay ninguna opcion buena, asi que no le voy a decir que pulse nada. ' +
+             'Lo mas sencillo y lo que no le cuesta nada es salir de aqui y buscar la misma informacion en otro sitio.'
+      });
+    } else if (rechazar && contextoCookies) {
       lista.push({
         el: rechazar, gravedad: 1, corto: 'Pulse el gris',
         voz: 'Le esta preguntando si le dejan seguirle por internet para enseñarle anuncios. ' +
              'El boton grande y de color es el que dice que si. El que le señalo, el discreto, es el que dice que no. ' +
-             'Puede pulsar el que le señalo tranquilamente: la pagina funciona igual de bien.'
+             'Puede pulsar el que le señalo tranquilamente: es gratis y la pagina funciona igual de bien.'
       });
+    }
+
+    /* RED DE SEGURIDAD FINAL.
+     *
+     * Ultimo filtro antes de señalar nada: si el sitio al que apunta el
+     * recuadro huele a dinero, se quita el recuadro y se deja solo el
+     * aviso hablado. Puede que se pierda algun caso legitimo, y es un
+     * precio que merece la pena: el peor fallo posible de esta app es
+     * señalarle a una persona mayor un boton que le acaba cobrando.
+     */
+    for (var q = 0; q < lista.length; q++) {
+      var it = lista[q];
+      if (!it.el) continue;
+      var alrededor = (limpio(it.el.textContent) + ' ' + entorno(it.el, 2)).toLowerCase();
+      var esCasilla = it.el.tagName === 'INPUT' && it.el.type === 'checkbox';
+      // Las casillas marcadas SI se señalan aunque hablen de dinero:
+      // ahi lo que se pide es quitar la marca, no pulsar para pagar.
+      if (!esCasilla && /suscr[ií]b|suscripci[oó]n|pagar|abonar|comprar ahora|premium|hazte socio/.test(alrededor)) {
+        it.el = null;
+      }
     }
 
     lista.sort(function (a, b) { return b.gravedad - a.gravedad; });
@@ -181,7 +231,35 @@
       if (window.__ultimaVoz) decir(window.__ultimaVoz, true);
     };
 
-    barra.appendChild(corto); barra.appendChild(rep);
+    // Casa: para poder salir de la web y volver al principio. Sin esto,
+    // al entrar en una pagina uno se queda encerrado dentro.
+    var casa = document.createElement('button');
+    casa.textContent = '\u{1F3E0}';
+    casa.setAttribute('style',
+      'flex-shrink:0;width:62px;height:62px;border-radius:50%;border:4px solid #fff;' +
+      'background:transparent;color:#fff;font-size:26px');
+    casa.onclick = function (ev) {
+      ev.preventDefault(); ev.stopPropagation();
+      try { if (window.Android && window.Android.inicio) window.Android.inicio(); } catch (e) {}
+    };
+
+    // La misma casa, tambien en la banda verde de "todo tranquilo"
+    tranquilo.style.display = 'flex';
+    tranquilo.style.alignItems = 'center';
+    tranquilo.style.gap = '12px';
+    var etiqueta = document.createElement('div');
+    etiqueta.setAttribute('style', 'flex:1;text-align:left');
+    etiqueta.textContent = '\u{1F6E1} Vigilando por usted';
+    var casa2 = casa.cloneNode(true);
+    casa2.setAttribute('style',
+      'flex-shrink:0;width:44px;height:44px;border-radius:50%;border:3px solid #fff;' +
+      'background:transparent;color:#fff;font-size:20px');
+    casa2.onclick = casa.onclick;
+    tranquilo.textContent = '';
+    tranquilo.appendChild(etiqueta);
+    tranquilo.appendChild(casa2);
+
+    barra.appendChild(corto); barra.appendChild(rep); barra.appendChild(casa);
     capa.appendChild(css); capa.appendChild(marco);
     capa.appendChild(tranquilo); capa.appendChild(barra);
     document.documentElement.appendChild(capa);
@@ -218,14 +296,16 @@
       // vigilando o si la app se habia caido.
       marco.style.display = 'none';
       barra.style.display = 'none';
-      tranquilo.style.display = 'block';
+      tranquilo.style.display = 'flex';
       ultimo = null;
       return;
     }
     var p = t[0];
     tranquilo.style.display = 'none';
     barra.style.display = 'flex';
-    rodear(p.el);
+    // Puede no haber nada que señalar, y esta bien: hay avisos que solo
+    // se dicen ("aqui no toque nada"). Antes esto habria reventado.
+    if (p.el) rodear(p.el); else marco.style.display = 'none';
     if (ultimo !== p.corto) {
       ultimo = p.corto; quieto = 0;
       corto.textContent = p.corto;
