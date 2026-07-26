@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -63,11 +64,29 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             )
         }
 
+        // LAS COOKIES SON IMPRESCINDIBLES AQUI.
+        //
+        // El codigo de seguridad (el captcha) no se comprueba solo: el
+        // servidor apunta en la sesion que letras te ha enseñado, y esa
+        // sesion viaja en una cookie. Si el navegador interno no las
+        // guarda, lo que escribe la persona NUNCA le cuadra al servidor,
+        // aunque lo haya copiado perfectamente. Sin esto, el tramite es
+        // imposible de terminar.
+        CookieManager.getInstance().setAcceptCookie(true)
+
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
+            settings.databaseEnabled = true
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
+            // Algunas sedes de la administracion sirven una version
+            // distinta (o directamente rota) si detectan que quien entra
+            // no es un navegador normal. Nos presentamos como Chrome.
+            settings.userAgentString = settings.userAgentString
+                .replace("; wv", "")
+                .replace(Regex("Version/\\d+\\.\\d+ "), "")
+            CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
             addJavascriptInterface(Puente(), "Android")
 
             webViewClient = object : WebViewClient() {
@@ -155,6 +174,9 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         ultimaFrase = ""        // al volver, que pueda repetir el paso actual
         web.onPause()
         web.pauseTimers()
+        // Guardar las cookies en disco: si no, al salir y volver se pierde
+        // la sesion y el captcha deja de cuadrar.
+        CookieManager.getInstance().flush()
     }
 
     override fun onResume() {
