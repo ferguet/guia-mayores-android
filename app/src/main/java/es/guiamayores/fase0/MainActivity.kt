@@ -193,13 +193,51 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         portadaVisible = false
 
         val fichero = if (u.contains("citapreviadnie")) "guia.js" else "guardaespaldas.js"
+
+        /* LA AYUDA SE BAJA DEL SERVIDOR, NO VIENE DENTRO DE LA APP.
+         *
+         * Esto cambia por completo la velocidad de trabajo. Antes, para
+         * corregir una frase o afinar un aviso, habia que: compilar,
+         * publicar, descargar el apk, instalarlo y volver a probar. Media
+         * hora por cada cambio de una linea, y el que prueba acaba harto
+         * con razon.
+         *
+         * Ahora las reglas viven en el servidor: se corrigen y en el
+         * siguiente enlace que se abra ya estan puestas. Sin descargar
+         * nada. Solo hay que recompilar la app cuando cambie algo de
+         * Android de verdad (permisos, pantallas, la voz).
+         *
+         * Si no hay internet o el servidor esta caido, se usa la copia
+         * que viene dentro de la app: nunca se queda sin proteccion.
+         */
+        val arranque = """
+            (function(){
+              window.__guiaViva=false; window.__guardaViva=false;
+              var s=document.createElement('script');
+              s.src='https://ai-council-ekax.onrender.com/guardian/$fichero?v='+Date.now();
+              s.onerror=function(){ window.__ayudaDelServidor=false; };
+              s.onload =function(){ window.__ayudaDelServidor=true; };
+              document.documentElement.appendChild(s);
+            })();
+        """.trimIndent()
+
+        web.evaluateJavascript(arranque) {
+            // Red de seguridad: si a los 4 segundos el servidor no ha
+            // servido nada, se mete la copia local.
+            web.postDelayed({
+                web.evaluateJavascript("!!(window.__guardaViva||window.__guiaViva)") { vivo ->
+                    if (vivo != "true") inyectarCopiaLocal(fichero)
+                }
+            }, 4000)
+        }
+    }
+
+    private fun inyectarCopiaLocal(fichero: String) {
         val js = try {
             assets.open(fichero).bufferedReader().use { it.readText() }
         } catch (e: Exception) {
-            hablar("No he podido cargar la ayuda. Cierre la aplicación y vuelva a abrirla.", true)
             return
         }
-        // Se limpian las marcas para que la ayuda se reinicie en la pantalla nueva
         web.evaluateJavascript("window.__guiaViva=false;window.__guardaViva=false;") {
             web.evaluateJavascript(js, null)
         }
