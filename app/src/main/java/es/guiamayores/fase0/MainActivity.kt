@@ -55,7 +55,22 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
      * una regla. Si el servidor no responde, se usa la copia de dentro
      * del apk: nunca se queda sin app.
      */
-    private val urlInicio = "https://ai-council-ekax.onrender.com/guardian/inicio.html"
+    /**
+     * DONDE VIVE EL SERVIDOR. Una sola linea para todo.
+     *
+     * Antes esta direccion estaba escrita a mano en CUATRO sitios
+     * distintos de la app, y al arreglar el problema de Render se cambio
+     * solo en uno. Los otros tres se quedaron apuntando a un servidor
+     * suspendido, que es justo por lo que seguia fallando en el movil.
+     *
+     * TEMPORAL: apunta al PC de casa mientras Render esta suspendido
+     * (se reactiva solo el 1 de agosto). Para volver a la normalidad,
+     * cambiar SOLO esta linea por:
+     *   private val servidor = "https://ai-council-ekax.onrender.com"
+     */
+    private val servidor = "http://192.168.4.43:8000"
+
+    private val urlInicio = "$servidor/guardian/inicio.html"
     private val urlInicioLocal = "file:///android_asset/inicio.html"
 
     @SuppressLint("SetJavaScriptEnabled", "AddJavascriptInterface")
@@ -135,7 +150,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 override fun onPermissionRequest(peticion: android.webkit.PermissionRequest?) {
                     val origen = peticion?.origin?.toString() ?: return
                     val nuestra = origen.startsWith("file://") ||
-                                  origen.startsWith("https://ai-council-ekax.onrender.com")
+                                  origen.startsWith(servidor)
                     if (nuestra) peticion.grant(peticion.resources) else peticion.deny()
                 }
             }
@@ -298,7 +313,7 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
             (function(){
               window.__guiaViva=false; window.__guardaViva=false;
               var s=document.createElement('script');
-              s.src='https://ai-council-ekax.onrender.com/guardian/$fichero?v='+Date.now();
+              s.src='$servidor/guardian/$fichero?v='+Date.now();
               s.onerror=function(){ window.__ayudaDelServidor=false; };
               s.onload =function(){ window.__ayudaDelServidor=true; };
               document.documentElement.appendChild(s);

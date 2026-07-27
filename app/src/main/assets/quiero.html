@@ -116,7 +116,12 @@
 <div id="resp"></div>
 
 <script>
-var SERVIDOR = 'https://ai-council-ekax.onrender.com/guardian/quiero';
+// TEMPORAL: apunta al PC de casa mientras Render esta suspendido.
+// Esta pantalla se quedo apuntando al servidor caido cuando se
+// arreglaron las demas, y por eso "Dime que quieres hacer" no
+// respondia. Volver a la de abajo cuando Render se reactive:
+// var SERVIDOR = 'https://ai-council-ekax.onrender.com/guardian/quiero';
+var SERVIDOR = 'http://192.168.4.43:8000/guardian/quiero';
 
 function decir(f){
   try{ if(window.Android && window.Android.decir){ window.Android.decir(f, true); return; } }catch(e){}
