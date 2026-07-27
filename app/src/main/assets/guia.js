@@ -120,7 +120,12 @@
       corto: 'No es culpa suya',
       voz: 'Escuche bien esto: no ha hecho usted nada mal. Lo que pasa es que ahora mismo no quedan citas libres. Le pasa a todo el mundo. Suelen soltar citas nuevas por la mañana temprano, asi que lo mejor es volver a intentarlo mañana sobre las ocho. No hace falta que repita nada ahora.' },
 
-    { patron: /c[oó]digo de seguridad.{0,40}(no|incorrect|err)|caracteres.{0,30}no coinciden/i,
+    // Probado contra la web real (26/07/2026): la Policia contesta en
+    // positivo, "Debe introducir un codigo de seguridad correcto", no en
+    // negativo. El patron viejo solo buscaba "no/incorrecto/error" cerca
+    // y por eso nunca saltaba: la persona se quedaba sin explicacion justo
+    // cuando fallaba el captcha, que es el momento de mas agobio.
+    { patron: /c[oó]digo de seguridad.{0,40}(no|incorrect|err|correcto)|caracteres.{0,30}no coinciden/i,
       corto: 'Las letras, otra vez',
       voz: 'Solo han fallado las letras torcidas del final. No se preocupe, es muy facil equivocarse porque se leen fatal. Le han puesto unas nuevas: copielas otra vez. Si no las ve bien, busque el botoncito para escucharlas.' },
 
