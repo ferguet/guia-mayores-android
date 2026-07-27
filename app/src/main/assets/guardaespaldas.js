@@ -693,7 +693,12 @@
          los botones y si una casilla esta marcada. Su DNI, su telefono
          y su tarjeta no salen de su movil.
      =================================================================== */
-  var SERVIDOR = 'https://ai-council-ekax.onrender.com/guardian/mirar';
+  // TEMPORAL mientras Render esta suspendido (vuelve solo el 1 de agosto).
+  // Apunta al PC de Fran en su red de casa: solo funciona con el movil
+  // en la misma WiFi y con la ventana de la ciudad abierta en el PC.
+  // La linea de siempre, para volver a ella en cuanto Render se reactive:
+  // var SERVIDOR = 'https://ai-council-ekax.onrender.com/guardian/mirar';
+  var SERVIDOR = 'http://192.168.4.43:8000/guardian/mirar';
   var avisoIA = null;          // lo ultimo que dijo la IA
   var huellaPreguntada = '';   // para no repetir la misma pantalla
   var preguntando = false;

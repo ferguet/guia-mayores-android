@@ -103,6 +103,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 .replace("; wv", "")
                 .replace(Regex("Version/\\d+\\.\\d+ "), "")
             CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+            // Mientras Render esta suspendido, el aviso de la IA del
+            // guardaespaldas apunta temporalmente al PC de Fran en su WiFi
+            // de casa, que no tiene certificado (http, no https). Sin este
+            // permiso, Android bloquea en silencio esa peticion desde
+            // cualquier pagina https -que son casi todas- y el sintoma es
+            // el mismo "fallo" de siempre, aunque el servidor si responda.
+            settings.mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
             settings.setGeolocationEnabled(true)
             addJavascriptInterface(Puente(), "Android")
 
