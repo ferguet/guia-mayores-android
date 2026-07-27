@@ -314,8 +314,14 @@
     /* 3.quater BOTON DE SUSCRIBIRSE SUELTO.
      * No dentro de un formulario ni de un muro: el tipico "Suscribete"
      * o "Hazte premium" que esta por ahi en medio de la pagina. */
+    // Probado en grok.com (27/07/2026): "Get SuperGrok" y "Upgrade to
+    // SuperGrok" son botones de suscripcion como cualquier otro, pero
+    // estaban en ingles y la lista de palabras solo tenia español. Se
+    // añaden las mismas palabras en ingles que ya se usaban en el aviso
+    // de cookies, para no dejar coja justo esta comprobacion.
     var botonSus = botonCon2(['suscríbete', 'suscribete', 'hazte premium', 'hazte socio',
-      'prueba premium', 'empezar prueba', 'suscribirme', 'quiero premium']);
+      'prueba premium', 'empezar prueba', 'suscribirme', 'quiero premium',
+      'get super', 'upgrade to', 'go premium', 'subscribe', 'upgrade now']);
     if (botonSus) {
       lista.push({
         el: botonSus, gravedad: 2, corto: 'Es una cuota',
